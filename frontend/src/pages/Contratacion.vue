@@ -1,96 +1,152 @@
 <template>
-  <div class="h-full bg-gray-50 flex flex-col">
-    <!-- Stats Cards Section -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 m-6 relative flex-shrink-0">
-      <!-- Toggle Button -->
-      <Button
-        variant="ghost"
-        size="sm"
-        @click="isStatsExpanded = !isStatsExpanded"
-        class="absolute top-2 right-2 z-10 p-1 h-8 w-8"
-      >
-        <FeatherIcon
-          :name="isStatsExpanded ? 'x' : 'menu'"
-          class="h-4 w-4"
-        />
-      </Button>
+  <div class="h-full bg-gray-50 flex flex-col overflow-hidden">
 
-      <!-- Cards Content -->
-      <div v-show="isStatsExpanded" class="p-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          <Card class="p-3">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-xs font-medium text-gray-600">Bajas esta Semana</p>
-                <p class="text-xl font-bold text-gray-900">{{ bajasEstaSemana }}</p>
-              </div>
-              <div class="p-1.5 rounded-full bg-red-100 text-red-600">
-                <FeatherIcon name="user-minus" class="h-4 w-4" />
-              </div>
-            </div>
-          </Card>
+    <!-- Filters Section -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 mx-6 mb-6 flex-shrink-0">
+      <div class="px-4 py-3">
+        <div class="flex items-center space-x-3">
+          <!-- Búsqueda por Nombre -->
+          <div class="flex-1">
+            <Input
+              v-model="searchFilters.employeeName"
+              type="text"
+              placeholder="Buscar por nombre..."
+              variant="outline"
+              size="sm"
+            >
+              <template #prefix>
+                <FeatherIcon name="search" class="h-4 text-gray-400" />
+              </template>
+            </Input>
+          </div>
 
-          <Card class="p-3">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-xs font-medium text-gray-600">Altas esta Semana</p>
-                <p class="text-xl font-bold text-gray-900">{{ altasEstaSemana }}</p>
-              </div>
-              <div class="p-1.5 rounded-full bg-green-100 text-green-600">
-                <FeatherIcon name="user-plus" class="h-4 w-4" />
-              </div>
-            </div>
-          </Card>
+          <!-- Búsqueda por DNI/NIE -->
+          <div class="flex-1">
+            <Input
+              v-model="searchFilters.dninie"
+              type="text"
+              placeholder="Buscar por DNI/NIE..."
+              variant="outline"
+              size="sm"
+            >
+              <template #prefix>
+                <FeatherIcon name="credit-card" class="h-4 text-gray-400" />
+              </template>
+            </Input>
+          </div>
 
-          <Card class="p-3">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-xs font-medium text-gray-600">Anexos que terminan</p>
-                <p class="text-xl font-bold text-gray-900">{{ contratosPendientes }}</p>
-              </div>
-              <div class="p-1.5 rounded-full bg-yellow-100 text-yellow-600">
-                <FeatherIcon name="file-minus" class="h-4 w-4" />
-              </div>
-            </div>
-          </Card>
-
-          <Card class="p-3">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-xs font-medium text-gray-600">Nuevos anexos</p>
-                <p class="text-xl font-bold text-gray-900">{{ contratosFirmados }}</p>
-              </div>
-              <div class="p-1.5 rounded-full bg-blue-100 text-blue-600">
-                <FeatherIcon name="file-plus" class="h-4 w-4" />
-              </div>
-            </div>
-          </Card>
+          <!-- Botón Limpiar Filtros -->
+          <div class="flex-shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              @click="clearFilters"
+              :disabled="!hasActiveFilters"
+            >
+              <FeatherIcon name="x" class="h-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Employee Management Section -->
-    <div class="flex gap-6 px-6 pb-6 flex-1 min-h-0">
+    <div class="flex gap-6 px-6 pb-6 flex-1 min-h-0 overflow-hidden">
       <!-- Left Column: Employee List -->
-      <div class="w-1/3 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col h-full">
+      <div
+        class="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-full overflow-hidden"
+        :class="isEmployeeListCollapsed ? 'w-64' : 'w-1/3'"
+      >
         <div class="px-4 py-3 border-b border-gray-200 flex-shrink-0">
-          <h3 class="text-sm font-medium text-gray-900">Empleados</h3>
+          <div v-if="isEmployeeListCollapsed && selectedEmployee" class="flex items-center justify-between">
+            <div class="flex-1 min-w-0">
+              <h3 class="text-sm font-medium text-gray-900 truncate">{{ selectedEmployee.employee_name }}</h3>
+              <p class="text-xs text-gray-500 truncate">{{ selectedEmployee.custom_dninie }}</p>
+            </div>
+            <button
+              @click="expandEmployeeList"
+              class="ml-2 p-1 text-gray-400"
+              title="Mostrar todos los empleados"
+            >
+              <FeatherIcon name="maximize-2" class="h-4 w-4" />
+            </button>
+          </div>
+          <h3 v-else class="text-sm font-medium text-gray-900">Empleados</h3>
         </div>
         <div class="overflow-y-auto flex-1">
           <div v-if="loadingEmployees" class="p-4 text-center text-gray-500">
             <FeatherIcon name="loader" class="h-6 w-6 animate-spin mx-auto mb-2" />
             Cargando empleados...
           </div>
-          <div v-else-if="!employees.data || employees.data.length === 0" class="p-4 text-center text-gray-500">
+          <div v-else-if="!filteredEmployees || filteredEmployees.length === 0" class="p-4 text-center text-gray-500">
             No hay empleados disponibles
+          </div>
+          <div v-else-if="isEmployeeListCollapsed && selectedEmployee" class="p-2">
+            <!-- Mostrar solo el empleado seleccionado cuando está colapsada -->
+            <div class="bg-blue-50 rounded-lg p-3 border border-blue-200">
+              <div class="flex items-start justify-between">
+                <div class="flex items-center space-x-3 flex-1 min-w-0">
+                  <div class="flex-shrink-0 h-8 w-8">
+                    <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                      <span class="text-xs font-semibold text-blue-700">
+                        {{ getInitials(selectedEmployee.employee_name) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-900 truncate">
+                      {{ selectedEmployee.employee_name || 'Sin nombre' }}
+                    </p>
+                    <p class="text-xs text-gray-600 truncate">
+                      {{ selectedEmployee.custom_dninie || selectedEmployee.name || 'Sin DNI' }}
+                    </p>
+                    <p class="text-xs text-gray-500 truncate">
+                      {{ selectedEmployee.designation || 'Sin puesto' }}
+                    </p>
+                    <div v-if="selectedEmployee.companies && selectedEmployee.companies.length > 0" class="text-xs text-gray-600">
+                      <div class="font-medium text-gray-700 mb-1">{{ selectedEmployee.status_text }}</div>
+                      <div v-for="company in selectedEmployee.companies" :key="company" class="truncate">
+                        {{ company }}
+                      </div>
+                    </div>
+                    <div v-else class="text-xs text-gray-500">
+                      {{ selectedEmployee.status_text }}
+                    </div>
+                  </div>
+                </div>
+                <div class="flex-shrink-0 ml-3">
+                  <div
+                    v-if="selectedEmployee.status === 'Alta'"
+                    class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium"
+                  >
+                    {{ selectedEmployee.status }}
+                  </div>
+                  <div
+                    v-else-if="selectedEmployee.status === 'Baja'"
+                    class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium"
+                  >
+                    {{ selectedEmployee.status }}
+                  </div>
+                  <div
+                    v-else
+                    class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium"
+                  >
+                    {{ selectedEmployee.status }}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           <div v-else class="divide-y divide-gray-200">
             <div
-              v-for="employee in employees.data"
+              v-for="employee in filteredEmployees"
               :key="employee.name"
               @click="selectEmployee(employee)"
-              class="p-3 cursor-pointer hover:bg-gray-50 transition-colors"
-              :class="{ 'bg-blue-50 border-r-2 border-blue-500': selectedEmployee?.name === employee.name }"
+              class="p-3 cursor-pointer"
+              :class="{
+                'bg-blue-50 border-r-2 border-blue-500': selectedEmployee?.name === employee.name,
+                'opacity-50': isLoadingJobOffers && selectedEmployee?.name === employee.name
+              }"
             >
               <div class="flex items-start justify-between">
                 <div class="flex items-center space-x-3 flex-1 min-w-0">
@@ -106,31 +162,42 @@
                       {{ employee.employee_name || 'Sin nombre' }}
                     </p>
                     <p class="text-xs text-gray-600 truncate">
-                      <span class="font-medium">DNI:</span> {{ employee.custom_dninie || employee.name || 'Sin DNI' }}
+                      {{ employee.custom_dninie || employee.name || 'Sin DNI' }}
                     </p>
                     <p class="text-xs text-gray-500 truncate">
                       {{ employee.designation || 'Sin puesto' }}
                     </p>
+                    <div v-if="employee.companies && employee.companies.length > 0" class="text-xs text-gray-600">
+                      <div class="font-medium text-gray-700 mb-1">{{ employee.status_text }}</div>
+                      <div v-for="company in employee.companies" :key="company" class="truncate">
+                        {{ company }}
+                      </div>
+                    </div>
+                    <div v-else class="text-xs text-gray-500">
+                      {{ employee.status_text }}
+                    </div>
                   </div>
                 </div>
 
-                <!-- Empresas en la parte superior derecha -->
+           <!-- Estado en la parte superior derecha -->
                 <div class="flex-shrink-0 ml-3">
-                  <div class="flex flex-col gap-1 max-w-48">
-                    <div
-                      v-for="company in employee.companies"
-                      :key="company"
-                      class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 truncate"
-                      :title="company"
-                    >
-                      {{ company }}
+             <div
+               v-if="employee.status === 'Alta'"
+               class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium"
+             >
+               {{ employee.status }}
                     </div>
                     <div
-                      v-if="!employee.companies || employee.companies.length === 0"
-                      class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600"
+               v-else-if="employee.status === 'Baja'"
+               class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium"
                     >
-                      Sin empresas
+               {{ employee.status }}
                     </div>
+             <div
+               v-else
+               class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium"
+             >
+               {{ employee.status }}
                   </div>
                 </div>
               </div>
@@ -139,71 +206,238 @@
         </div>
       </div>
 
-      <!-- Right Column: Job Offers -->
-      <div class="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col h-full">
-        <div class="px-4 py-3 border-b border-gray-200 flex-shrink-0">
+      <!-- Right Column: Hojas de Contratación -->
+      <div class="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-full overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-200 flex-shrink-0 flex items-center justify-between">
           <h3 class="text-sm font-medium text-gray-900">
-            {{ selectedEmployee ? `Job Offers - ${selectedEmployee.employee_name}` : 'Selecciona un empleado' }}
+            {{ selectedEmployee ? `Hojas de Contratación - ${selectedEmployee.employee_name}` : 'Selecciona un empleado' }}
           </h3>
+          <button
+            v-if="isEmployeeListCollapsed && selectedEmployee"
+            @click="expandEmployeeList"
+            class="flex items-center space-x-2 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-md"
+          >
+            <FeatherIcon name="users" class="h-4 w-4" />
+            <span>Mostrar empleados</span>
+          </button>
         </div>
         <div class="overflow-y-auto flex-1">
           <div v-if="!selectedEmployee" class="p-8 text-center text-gray-500">
             <FeatherIcon name="user" class="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p>Selecciona un empleado para ver sus Job Offers</p>
+            <p>Selecciona un empleado para ver sus Hojas de Contratación</p>
           </div>
-          <div v-else-if="loadingJobOffers" class="p-4 text-center text-gray-500">
-            <FeatherIcon name="loader" class="h-6 w-6 animate-spin mx-auto mb-2" />
-            Cargando Job Offers...
+          <div v-else-if="isLoadingJobOffers" class="p-8 text-center text-gray-500">
+            <FeatherIcon name="loader" class="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p class="text-sm">Cargando Hojas de Contratación...</p>
+            <p class="text-xs text-gray-400 mt-2">Por favor espera...</p>
           </div>
-          <div v-else-if="!jobOffers.data || jobOffers.data.length === 0" class="p-4 text-center text-gray-500">
+          <div v-else-if="!jobOffersData || jobOffersData.length === 0" class="p-4 text-center text-gray-500">
             <FeatherIcon name="file-text" class="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p>No hay Job Offers para este empleado</p>
+            <p>No hay Hojas de Contratación para este empleado</p>
           </div>
           <div v-else class="divide-y divide-gray-200">
             <div
-              v-for="jobOffer in jobOffers.data"
+              v-for="jobOffer in jobOffersData"
               :key="jobOffer.name"
-              class="p-4 hover:bg-gray-50 transition-colors"
+              class="p-4 border-l-4 border-transparent"
             >
-              <div class="flex items-center justify-between">
+              <div class="flex items-start justify-between">
                 <div class="flex-1">
-                  <div class="flex items-center space-x-3 mb-2">
-                    <h4 class="text-sm font-medium text-gray-900">{{ jobOffer.designation || 'Sin título' }}</h4>
-                    <Badge
-                      :theme="getJobOfferStatusTheme(jobOffer.status)"
-                      variant="subtle"
-                      class="text-xs"
+                  <div class="flex items-center space-x-3 mb-3">
+                    <div class="flex-1">
+                      <h4 class="text-base font-semibold text-gray-900">{{ jobOffer.designation || 'Sin título' }}</h4>
+                      <p class="text-sm text-gray-500 font-mono">ID: {{ jobOffer.name }}</p>
+                    </div>
+                    <div
+                      v-if="jobOffer.workflow_state === 'Alta'"
+                      class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium"
                     >
-                      {{ jobOffer.status || 'Sin estado' }}
-                    </Badge>
+                      {{ jobOffer.workflow_state }}
+                    </div>
+                    <div
+                      v-else-if="jobOffer.workflow_state === 'Baja'"
+                      class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium"
+                    >
+                      {{ jobOffer.workflow_state }}
+                    </div>
+                    <div
+                      v-else-if="jobOffer.workflow_state === 'Pendiente'"
+                      class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium"
+                    >
+                      {{ jobOffer.workflow_state }}
+                    </div>
+                    <div
+                      v-else-if="jobOffer.workflow_state === 'Cancelado'"
+                      class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium"
+                    >
+                      {{ jobOffer.workflow_state }}
+                    </div>
+                    <div
+                      v-else
+                      class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium"
+                    >
+                      {{ jobOffer.workflow_state || 'Sin estado' }}
+                    </div>
                   </div>
-                  <div class="grid grid-cols-2 gap-4 text-xs text-gray-500">
-                    <div>
-                      <span class="font-medium">Fecha Inicio:</span>
-                      <span class="ml-1">{{ formatDate(jobOffer.custom_fecha_inicio) }}</span>
+
+                  <!-- Información principal del Job Offer -->
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                    <div class="space-y-2">
+                      <div class="flex items-center space-x-2 text-sm">
+                        <FeatherIcon name="calendar" class="h-4 w-4 text-gray-400" />
+                        <span class="text-gray-600">Fecha de oferta:</span>
+                        <span class="font-medium text-gray-900">
+                          {{ jobOffer.offer_date ? formatDate(jobOffer.offer_date) : 'No especificada' }}
+                        </span>
+                      </div>
+
+                      <div class="flex items-center space-x-2 text-sm">
+                        <FeatherIcon name="building" class="h-4 w-4 text-gray-400" />
+                        <span class="text-gray-600">Empresa:</span>
+                        <span class="font-medium text-gray-900">{{ jobOffer.company || 'No especificada' }}</span>
+                      </div>
+
+                      <div v-if="jobOffer.custom_tipo_de_contrato" class="flex items-center space-x-2 text-sm">
+                        <FeatherIcon name="file-text" class="h-4 w-4 text-gray-400" />
+                        <span class="text-gray-600">Tipo de contrato:</span>
+                        <span class="font-medium text-gray-900">{{ jobOffer.custom_tipo_de_contrato }}</span>
+                      </div>
                     </div>
-                    <div>
-                      <span class="font-medium">Fecha Fin:</span>
-                      <span class="ml-1">{{ formatDate(jobOffer.custom_fecha_fin) }}</span>
+
+                    <div class="space-y-2">
+                      <div v-if="jobOffer.custom_fecha_inicio" class="flex items-center space-x-2 text-sm">
+                        <FeatherIcon name="play" class="h-4 w-4 text-gray-400" />
+                        <span class="text-gray-600">Inicio:</span>
+                        <span class="font-medium text-gray-900">{{ formatDate(jobOffer.custom_fecha_inicio) }}</span>
+                      </div>
+
+                      <div v-if="jobOffer.custom_fecha_fin" class="flex items-center space-x-2 text-sm">
+                        <FeatherIcon name="stop" class="h-4 w-4 text-gray-400" />
+                        <span class="text-gray-600">Fin:</span>
+                        <span class="font-medium text-gray-900">{{ formatDate(jobOffer.custom_fecha_fin) }}</span>
+                      </div>
+
+                      <div v-if="jobOffer.custom_estado_de_tramitacion" class="flex items-center space-x-2 text-sm">
+                        <FeatherIcon name="settings" class="h-4 w-4 text-gray-400" />
+                        <span class="text-gray-600">Tramitación:</span>
+                        <span class="font-medium text-gray-900">{{ jobOffer.custom_estado_de_tramitacion }}</span>
+                      </div>
                     </div>
-                    <div>
-                      <span class="font-medium">Salario:</span>
-                      <span class="ml-1">{{ jobOffer.offer_date || 'No especificado' }}</span>
+                  </div>
+
+                  <!-- Información adicional -->
+                  <div class="flex flex-wrap gap-2 text-xs">
+                    <div v-if="jobOffer.custom_firmado" class="flex items-center space-x-1 px-2 py-1 bg-green-100 text-green-800 rounded-full">
+                      <FeatherIcon name="check" class="h-3 w-3" />
+                      <span>Firmado</span>
                     </div>
-                    <div>
-                      <span class="font-medium">Creado:</span>
-                      <span class="ml-1">{{ formatDate(jobOffer.creation) }}</span>
+                    <div v-if="jobOffer.custom_contrato" class="flex items-center space-x-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                      <FeatherIcon name="file" class="h-3 w-3" />
+                      <span>Contrato</span>
+                    </div>
+                    <div v-if="jobOffer.custom_comun" class="flex items-center space-x-1 px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
+                      <FeatherIcon name="users" class="h-3 w-3" />
+                      <span>Común</span>
                     </div>
                   </div>
                 </div>
-                <div class="flex items-center space-x-2 ml-4">
-                  <Button variant="ghost" size="sm" theme="blue">
-                    <FeatherIcon name="eye" class="h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" theme="green">
-                    <FeatherIcon name="edit" class="h-4" />
-                  </Button>
+
+                <!-- Modificaciones RRHH -->
+                <div v-if="getModificacionesForJobOffer(jobOffer.name).length > 0" class="mt-4 ml-4 border-l-2 border-blue-200 pl-4">
+                  <div class="flex items-center justify-between mb-3">
+                    <h6 class="text-sm font-medium text-gray-700 flex items-center">
+                      <FeatherIcon name="edit-3" class="h-4 w-4 mr-2 text-blue-600" />
+                      Modificaciones RRHH ({{ getModificacionesForJobOffer(jobOffer.name).length }})
+                    </h6>
+                    <button
+                      @click="toggleJobOfferExpansion(jobOffer.name)"
+                      class="text-sm text-blue-600 flex items-center font-medium"
+                    >
+                      <FeatherIcon
+                        :name="expandedJobOffers.has(jobOffer.name) ? 'chevron-up' : 'chevron-down'"
+                        class="h-4 w-4 mr-1"
+                      />
+                      {{ expandedJobOffers.has(jobOffer.name) ? 'Ocultar' : 'Mostrar' }}
+                    </button>
+                  </div>
+
+                  <div v-if="expandedJobOffers.has(jobOffer.name)" class="space-y-3">
+                    <div
+                      v-for="(modificacion, index) in getModificacionesForJobOffer(jobOffer.name)"
+                      :key="modificacion.name"
+                      class="bg-blue-50 rounded-lg p-3 border border-blue-200 relative"
+                    >
+                      <!-- Indicador de lista -->
+                      <div class="absolute -left-6 top-3 w-3 h-3 bg-blue-400 rounded-full border-2 border-white"></div>
+
+                      <div class="flex items-start justify-between mb-2">
+                        <div class="flex-1">
+                          <h6 class="text-sm font-semibold text-gray-900">{{ modificacion.tipo_actualizacion || 'Modificación' }}</h6>
+                          <p class="text-xs text-gray-500 font-mono">ID: {{ modificacion.name }}</p>
+                        </div>
+                        <div
+                          v-if="modificacion.workflow_state === 'Alta'"
+                          class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium"
+                        >
+                          {{ modificacion.workflow_state }}
+                        </div>
+                        <div
+                          v-else-if="modificacion.workflow_state === 'Baja'"
+                          class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium"
+                        >
+                          {{ modificacion.workflow_state }}
+                        </div>
+                        <div
+                          v-else-if="modificacion.workflow_state === 'Pendiente'"
+                          class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium"
+                        >
+                          {{ modificacion.workflow_state }}
+                        </div>
+                        <div
+                          v-else
+                          class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium"
+                        >
+                          {{ modificacion.workflow_state || 'Sin estado' }}
+                        </div>
+                      </div>
+
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        <div v-if="modificacion.start_date" class="flex items-center space-x-2">
+                          <FeatherIcon name="play" class="h-4 w-4 text-gray-400" />
+                          <span class="text-gray-600">Inicio:</span>
+                          <span class="font-medium text-gray-900">{{ formatDate(modificacion.start_date) }}</span>
+                        </div>
+                        <div v-if="modificacion.end_date" class="flex items-center space-x-2">
+                          <FeatherIcon name="stop" class="h-4 w-4 text-gray-400" />
+                          <span class="text-gray-600">Fin:</span>
+                          <span class="font-medium text-gray-900">{{ formatDate(modificacion.end_date) }}</span>
+                        </div>
+                        <div v-if="modificacion.custom_tipo_de_contrato" class="flex items-center space-x-2">
+                          <FeatherIcon name="file-text" class="h-4 w-4 text-gray-400" />
+                          <span class="text-gray-600">Tipo:</span>
+                          <span class="font-medium text-gray-900">{{ modificacion.custom_tipo_de_contrato }}</span>
+                        </div>
+                        <div v-if="modificacion.custom_provincia" class="flex items-center space-x-2">
+                          <FeatherIcon name="map-pin" class="h-4 w-4 text-gray-400" />
+                          <span class="text-gray-600">Provincia:</span>
+                          <span class="font-medium text-gray-900">{{ modificacion.custom_provincia }}</span>
+                        </div>
+                      </div>
+
+                      <div class="flex flex-wrap gap-2 mt-2">
+                        <div v-if="modificacion.custom_firmado" class="flex items-center space-x-1 px-2 py-1 bg-green-100 text-green-800 rounded-full">
+                          <FeatherIcon name="check" class="h-3 w-3" />
+                          <span class="text-xs">Firmado</span>
+                        </div>
+                        <div v-if="modificacion.custom_comun" class="flex items-center space-x-1 px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
+                          <FeatherIcon name="users" class="h-3 w-3" />
+                          <span class="text-xs">Común</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
               </div>
             </div>
           </div>
@@ -215,48 +449,180 @@
 
 <script setup>
 import { FeatherIcon, Button, Badge, Card, createResource } from 'frappe-ui'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
-// Variables reactivas para los indicadores
-const isStatsExpanded = ref(true)
 
 // Employee management
 const selectedEmployee = ref(null)
 
-// Resources using CRM pattern
-const contratacionStats = createResource({
-  url: 'portal_rrhh.api.job_offer.get_contratacion_stats',
-  cache: 'contratacion-stats',
-  auto: true
+// Search filters
+const searchFilters = ref({
+  employeeName: '',
+  dninie: ''
 })
+
+// Empleados filtrados
+const filteredEmployees = ref([])
+
+// Estado de carga simplificado
+const isLoadingJobOffers = ref(false)
+const jobOffersData = ref([])
+const currentEmployeeId = ref(null)
+
+// Modificaciones RRHH
+const modificacionesData = ref([])
+const isLoadingModificaciones = ref(false)
+const expandedJobOffers = ref(new Set())
+const isEmployeeListCollapsed = ref(false)
+
+// Resources using CRM pattern
 
 const employees = createResource({
   url: 'portal_rrhh.api.employee.get_employees',
-  cache: 'employees',
-  auto: true
+  cache: false,
+  auto: true,
+  params: () => ({
+    filters: JSON.stringify({
+      status: 'Active'
+    })
+  })
 })
 
-const jobOffers = createResource({
-  url: 'portal_rrhh.api.job_offer.get_job_offers_by_employee',
-  cache: ['job-offers', () => selectedEmployee.value?.name],
-  auto: false
-})
+// Ya no necesitamos el resource de jobOffers, usamos fetch directo
 
-// Computed properties for stats
-const bajasEstaSemana = computed(() => contratacionStats.data?.bajas_esta_semana || 0)
-const altasEstaSemana = computed(() => contratacionStats.data?.altas_esta_semana || 0)
-const contratosPendientes = computed(() => contratacionStats.data?.contratos_pendientes || 0)
-const contratosFirmados = computed(() => contratacionStats.data?.contratos_firmados || 0)
 
 // Loading states
 const loadingEmployees = computed(() => employees.loading)
-const loadingJobOffers = computed(() => jobOffers.loading)
+
+// Función para cargar job offers usando Frappe UI
+const loadJobOffers = async (employeeName) => {
+  try {
+    // Usar Frappe UI para hacer la llamada
+    const { call } = await import('frappe-ui')
+    const data = await call('portal_rrhh.api.job_offer.get_job_offers_by_employee', {
+      employee_name: employeeName
+    })
+
+    return data || []
+  } catch (error) {
+    return []
+  }
+}
+
+// Función para cargar modificaciones RRHH para un solo job offer
+const loadModificacionesForSingleJobOffer = async (jobOfferName) => {
+  try {
+    console.log('🔄 Cargando modificaciones para Job Offer:', jobOfferName)
+
+    // Verificar si ya tenemos las modificaciones para este job offer
+    const existingModificaciones = modificacionesData.value.filter(mod => mod.job_offer_name === jobOfferName)
+    if (existingModificaciones.length > 0) {
+      console.log('✅ Modificaciones ya cargadas para:', jobOfferName)
+      return
+    }
+
+    // Verificar si ya se está cargando para este job offer
+    if (isLoadingModificaciones.value) {
+      console.log('⏳ Ya se está cargando modificaciones...')
+      return
+    }
+
+    isLoadingModificaciones.value = true
+    console.log('📡 Llamando API de modificaciones...')
+
+    const { call } = await import('frappe-ui')
+    const response = await call('portal_rrhh.api.modificaciones_rrhh.get_modificaciones_by_job_offer', {
+      job_offer_name: jobOfferName
+    })
+
+    console.log('📊 Respuesta de modificaciones:', response?.length || 0, 'registros')
+
+    // Agregar las modificaciones con referencia al job offer
+    const modificacionesWithJobOffer = (response || []).map(mod => ({
+      ...mod,
+      job_offer_name: jobOfferName
+    }))
+
+    modificacionesData.value.push(...modificacionesWithJobOffer)
+    console.log('✅ Modificaciones agregadas. Total en memoria:', modificacionesData.value.length)
+  } catch (error) {
+    console.error('❌ Error cargando modificaciones:', error)
+  } finally {
+    isLoadingModificaciones.value = false
+  }
+}
+
+// Función para obtener modificaciones de un job offer específico
+const getModificacionesForJobOffer = (jobOfferName) => {
+  const modificaciones = modificacionesData.value.filter(mod => mod.job_offer_name === jobOfferName)
+  console.log(`🔍 Modificaciones para ${jobOfferName}:`, modificaciones.length)
+  return modificaciones
+}
+
+// Función para alternar expansión de job offer
+const toggleJobOfferExpansion = (jobOfferName) => {
+  console.log('🔄 Toggle modificaciones para Job Offer:', jobOfferName)
+
+  if (expandedJobOffers.value.has(jobOfferName)) {
+    console.log('📤 Colapsando modificaciones...')
+    expandedJobOffers.value.delete(jobOfferName)
+  } else {
+    console.log('📥 Expandiendo modificaciones...')
+    expandedJobOffers.value.add(jobOfferName)
+  }
+}
+
+const expandEmployeeList = () => {
+  isEmployeeListCollapsed.value = false
+}
 
 // Función para seleccionar empleado
-const selectEmployee = (employee) => {
+const selectEmployee = async (employee) => {
+  // Prevenir clics múltiples
+  if (isLoadingJobOffers.value) {
+    return
+  }
+
+  // Si es el mismo empleado y ya tenemos datos, no recargar
+  if (currentEmployeeId.value === employee.name && jobOffersData.value.length > 0) {
+    selectedEmployee.value = employee
+    return
+  }
+
+  // Ejecutar selección inmediatamente
+  await performEmployeeSelection(employee)
+}
+
+// Función separada para la lógica de selección
+const performEmployeeSelection = async (employee) => {
+  // Iniciar carga
+  isLoadingJobOffers.value = true
   selectedEmployee.value = employee
-  jobOffers.params = { employee_name: employee.name }
-  jobOffers.reload()
+  currentEmployeeId.value = employee.name
+  jobOffersData.value = []
+
+  // Colapsar la lista de empleados para dar más espacio
+  isEmployeeListCollapsed.value = true
+
+  try {
+    // Cargar job offers
+    const data = await loadJobOffers(employee.name)
+    jobOffersData.value = data
+
+    // Limpiar modificaciones anteriores
+    modificacionesData.value = []
+    expandedJobOffers.value.clear()
+
+    // Cargar modificaciones para todas las job offers automáticamente
+    for (const jobOffer of data) {
+      await loadModificacionesForSingleJobOffer(jobOffer.name)
+    }
+
+  } catch (error) {
+    jobOffersData.value = []
+  } finally {
+    isLoadingJobOffers.value = false
+  }
 }
 
 // Función para obtener iniciales del nombre
@@ -269,15 +635,14 @@ const getInitials = (name) => {
   return name.charAt(0).toUpperCase()
 }
 
-
 // Función para formatear fechas
 const formatDate = (dateString) => {
-  if (!dateString) return 'No especificado'
+  if (!dateString) return 'No especificada'
   const date = new Date(dateString)
   return date.toLocaleDateString('es-ES', {
     year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
+    month: 'short',
+    day: 'numeric'
   })
 }
 
@@ -292,6 +657,76 @@ const getJobOfferStatusTheme = (status) => {
   }
   return statusMap[status] || 'gray'
 }
+
+// Función para obtener el tema del workflow state
+const getWorkflowStateTheme = (workflowState) => {
+  const workflowMap = {
+    'Alta': 'green',
+    'Baja': 'red',
+    'Baja Solicitada': 'orange',
+    'Baja Tramitada': 'red',
+    'Validado': 'blue',
+    'Modificado': 'purple',
+    'Borrador': 'gray',
+    'Anulado': 'red',
+    'Cancelado': 'red'
+  }
+  return workflowMap[workflowState] || 'gray'
+}
+
+// Función para obtener el tema del estado del empleado
+const getEmployeeStatusTheme = (status) => {
+  const statusMap = {
+    'Alta': 'success',
+    'Baja': 'danger',
+    'Sin Hojas': 'gray',
+    'Sin DNI': 'gray'
+  }
+  return statusMap[status] || 'gray'
+}
+
+
+// Computed para verificar si hay filtros activos
+const hasActiveFilters = computed(() => {
+  return searchFilters.value.employeeName.trim() !== '' || searchFilters.value.dninie.trim() !== ''
+})
+
+// Función para limpiar filtros
+const clearFilters = () => {
+  searchFilters.value.employeeName = ''
+  searchFilters.value.dninie = ''
+}
+
+// Computed property para empleados filtrados - más eficiente que watchers
+const filteredEmployeesComputed = computed(() => {
+  if (!employees.data) return []
+
+  const nameFilter = searchFilters.value.employeeName.trim().toLowerCase()
+  const dninieFilter = searchFilters.value.dninie.trim().toLowerCase()
+
+  return employees.data.filter(emp => {
+    if (nameFilter && (!emp.employee_name || !emp.employee_name.toLowerCase().includes(nameFilter))) {
+      return false
+    }
+    if (dninieFilter && (!emp.custom_dninie || !emp.custom_dninie.toLowerCase().includes(dninieFilter))) {
+      return false
+    }
+    return true
+  })
+})
+
+// Actualizar filteredEmployees cuando cambia el computed
+watch(filteredEmployeesComputed, (newValue) => {
+  filteredEmployees.value = newValue
+}, { immediate: true })
+
+// Watcher simple para resetear datos cuando cambia el empleado
+watch(() => selectedEmployee.value, (newEmployee, oldEmployee) => {
+  if (newEmployee?.name !== oldEmployee?.name) {
+    jobOffersData.value = []
+    currentEmployeeId.value = null
+  }
+})
 
 
 </script>

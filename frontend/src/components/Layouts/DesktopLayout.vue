@@ -3,7 +3,7 @@
     <div class="h-full border-r bg-gray-50">
       <AppSidebar />
     </div>
-    <div class="flex-1 flex flex-col h-full overflow-auto">
+    <div class="flex-1 flex flex-col h-full overflow-hidden">
       <PageHeader
         :title="currentPageTitle"
         :subtitle="''"
@@ -13,7 +13,9 @@
         :new-button-text="currentPageActionButton"
         :new-button-icon="currentPageActionIcon"
       />
-      <slot />
+      <div class="flex-1 overflow-hidden">
+        <slot />
+      </div>
     </div>
   </div>
 </template>

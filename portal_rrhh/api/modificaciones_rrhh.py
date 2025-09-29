@@ -4,53 +4,93 @@ from frappe import _
 @frappe.whitelist()
 def get_modificaciones_by_employee(employee_name):
     """Get modificaciones RRHH for a specific employee"""
-    Modificaciones = frappe.qb.DocType("Modificaciones RRHH")
+    frappe.log_error(f"🔍 Modificaciones API - employee_name recibido: {employee_name}", "Modificaciones API Debug")
+
+    # Primero obtener el DNI/NIE del empleado
+    Employee = frappe.qb.DocType("Employee")
+    employee_query = (
+        frappe.qb.from_(Employee)
+        .select(Employee.custom_dninie)
+        .where(Employee.name == employee_name)
+    )
+
+    employee_data = employee_query.run(as_dict=True)
+    if not employee_data:
+        frappe.log_error(f"🔍 Modificaciones API - No se encontró empleado: {employee_name}", "Modificaciones API Debug")
+        return []
+
+    employee_dni = employee_data[0].get('custom_dninie')
+    if not employee_dni:
+        frappe.log_error(f"🔍 Modificaciones API - Empleado sin DNI/NIE: {employee_name}", "Modificaciones API Debug")
+        return []
+
+    frappe.log_error(f"🔍 Modificaciones API - DNI del empleado: {employee_dni}", "Modificaciones API Debug")
+
+    ModificacionesRRHH = frappe.qb.DocType("Modificaciones RRHH")
 
     query = (
-        frappe.qb.from_(Modificaciones)
+        frappe.qb.from_(ModificacionesRRHH)
         .select(
-            Modificaciones.name,
-            Modificaciones.company,
-            Modificaciones.employee,
-            Modificaciones.designation,
-            Modificaciones.start_date,
-            Modificaciones.end_date,
-            Modificaciones.status,
-            Modificaciones.tipo_actualizacion,
-            Modificaciones.job_offer,
-            Modificaciones.creation,
-            Modificaciones.modified,
-            Modificaciones.custom_estado_de_tramitacion,
-            Modificaciones.custom_tipo_de_contrato,
-            Modificaciones.custom_provincia,
-            Modificaciones.custom_firmado,
-            Modificaciones.custom_comun,
-            Modificaciones.workflow_state,
-            Modificaciones.curso,
-            Modificaciones.expediente,
-            Modificaciones.centro_formacion
+            ModificacionesRRHH.name,
+            ModificacionesRRHH.company,
+            ModificacionesRRHH.employee,
+            ModificacionesRRHH.designation,
+            ModificacionesRRHH.start_date,
+            ModificacionesRRHH.end_date,
+            ModificacionesRRHH.status,
+            ModificacionesRRHH.job_offer,
+            ModificacionesRRHH.tipo_actualizacion,
+            ModificacionesRRHH.custom_estado_de_tramitacion,
+            ModificacionesRRHH.custom_tipo_de_contrato,
+            ModificacionesRRHH.custom_provincia,
+            ModificacionesRRHH.custom_firmado,
+            ModificacionesRRHH.custom_comun,
+            ModificacionesRRHH.workflow_state,
+            ModificacionesRRHH.creation,
+            ModificacionesRRHH.modified
         )
-        .where(Modificaciones.employee == employee_name)
-        .orderby(Modificaciones.creation, order=frappe.qb.desc)
+        .where(ModificacionesRRHH.employee == employee_name)
+        .orderby(ModificacionesRRHH.creation, order=frappe.qb.desc)
     )
 
     modificaciones = query.run(as_dict=True)
+    frappe.log_error(f"🔍 Modificaciones API - Modificaciones encontradas: {len(modificaciones)}", "Modificaciones API Debug")
     return modificaciones
 
 @frappe.whitelist()
-def get_modificacion(name):
-    """Get specific modificacion details"""
-    Modificaciones = frappe.qb.DocType("Modificaciones RRHH")
+def get_modificaciones_by_job_offer(job_offer_name):
+    """Get modificaciones RRHH for a specific job offer"""
+    try:
+        ModificacionesRRHH = frappe.qb.DocType("Modificaciones RRHH")
 
-    query = (
-        frappe.qb.from_(Modificaciones)
-        .select("*")
-        .where(Modificaciones.name == name)
-        .limit(1)
-    )
+        query = (
+            frappe.qb.from_(ModificacionesRRHH)
+            .select(
+                ModificacionesRRHH.name,
+                ModificacionesRRHH.company,
+                ModificacionesRRHH.employee,
+                ModificacionesRRHH.designation,
+                ModificacionesRRHH.start_date,
+                ModificacionesRRHH.end_date,
+                ModificacionesRRHH.status,
+                ModificacionesRRHH.job_offer,
+                ModificacionesRRHH.tipo_actualizacion,
+                ModificacionesRRHH.custom_estado_de_tramitacion,
+                ModificacionesRRHH.custom_tipo_de_contrato,
+                ModificacionesRRHH.custom_provincia,
+                ModificacionesRRHH.custom_firmado,
+                ModificacionesRRHH.custom_comun,
+                ModificacionesRRHH.workflow_state,
+                ModificacionesRRHH.creation,
+                ModificacionesRRHH.modified
+            )
+            .where(ModificacionesRRHH.job_offer == job_offer_name)
+            .orderby(ModificacionesRRHH.creation, order=frappe.qb.desc)
+            .limit(50)  # Limitar resultados para mejor rendimiento
+        )
 
-    modificacion = query.run(as_dict=True)
-    if not len(modificacion):
-        frappe.throw(_("Modificacion RRHH not found"), frappe.DoesNotExistError)
-
-    return modificacion[0]
+        modificaciones = query.run(as_dict=True)
+        return modificaciones
+    except Exception as e:
+        frappe.log_error(f"Error en get_modificaciones_by_job_offer: {str(e)}", "Modificaciones API Error")
+        return []

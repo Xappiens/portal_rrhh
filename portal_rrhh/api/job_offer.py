@@ -4,39 +4,60 @@ from frappe import _
 @frappe.whitelist()
 def get_job_offers_by_employee(employee_name):
     """Get job offers for a specific employee"""
-    JobOffer = frappe.qb.DocType("Job Offer")
-
-    query = (
-        frappe.qb.from_(JobOffer)
-        .select(
-            JobOffer.name,
-            JobOffer.job_applicant,
-            JobOffer.applicant_name,
-            JobOffer.applicant_email,
-            JobOffer.status,
-            JobOffer.offer_date,
-            JobOffer.designation,
-            JobOffer.company,
-            JobOffer.creation,
-            JobOffer.modified,
-            JobOffer.custom_fecha_inicio,
-            JobOffer.custom_fecha_fin,
-            JobOffer.custom_tipo_de_contrato,
-            JobOffer.custom_estado_de_tramitacion,
-            JobOffer.custom_firmado,
-            JobOffer.custom_contrato,
-            JobOffer.custom_comun,
-            JobOffer.workflow_state,
-            JobOffer.curso,
-            JobOffer.expediente,
-            JobOffer.centro_formacion
+    try:
+        # Primero obtener el DNI/NIE del empleado
+        Employee = frappe.qb.DocType("Employee")
+        employee_query = (
+            frappe.qb.from_(Employee)
+            .select(Employee.custom_dninie)
+            .where(Employee.name == employee_name)
         )
-        .where(JobOffer.job_applicant == employee_name)
-        .orderby(JobOffer.creation, order=frappe.qb.desc)
-    )
 
-    job_offers = query.run(as_dict=True)
-    return job_offers
+        employee_data = employee_query.run(as_dict=True)
+        if not employee_data:
+            return []
+
+        employee_dni = employee_data[0].get('custom_dninie')
+        if not employee_dni:
+            return []
+
+        JobOffer = frappe.qb.DocType("Job Offer")
+
+        query = (
+            frappe.qb.from_(JobOffer)
+            .select(
+                JobOffer.name,
+                JobOffer.job_applicant,
+                JobOffer.applicant_name,
+                JobOffer.applicant_email,
+                JobOffer.status,
+                JobOffer.offer_date,
+                JobOffer.designation,
+                JobOffer.company,
+                JobOffer.creation,
+                JobOffer.modified,
+                JobOffer.custom_fecha_inicio,
+                JobOffer.custom_fecha_fin,
+                JobOffer.custom_tipo_de_contrato,
+                JobOffer.custom_estado_de_tramitacion,
+                JobOffer.custom_firmado,
+                JobOffer.custom_contrato,
+                JobOffer.custom_comun,
+                JobOffer.workflow_state,
+                JobOffer.curso,
+                JobOffer.expediente,
+                JobOffer.centro_formacion
+            )
+            .where(JobOffer.custom_dninie == employee_dni)
+            .orderby(JobOffer.creation, order=frappe.qb.desc)
+            .limit(20)  # Limitar resultados para mejor rendimiento
+        )
+
+        job_offers = query.run(as_dict=True)
+        return job_offers
+    except Exception as e:
+        frappe.log_error(f"Error en get_job_offers_by_employee: {str(e)}", "Job Offer API Error")
+        return []
 
 @frappe.whitelist()
 def get_job_offer(name):
