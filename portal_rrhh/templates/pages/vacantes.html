@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vacantes - Portal RRHH</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/frappe-ui@latest/dist/frappe-ui.umd.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="/assets/portal_rrhh/frappe-ui-components.js"></script>
+    <style>
+        :root {
+            --primary: #2e7d32;
+            --primary-dark: #1b5e20;
+            --secondary: #f5f5f5;
+            --text: #333333;
+            --text-light: #666666;
+            --border: #e0e0e0;
+            --background: #ffffff;
+            --surface: #fafafa;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="flex min-h-screen">
+            <!-- Sidebar -->
+            <div class="w-64 bg-gradient-to-b from-green-600 to-green-800 text-white p-6">
+                <div class="mb-8">
+                    <h1 class="text-2xl font-bold">
+                        <i class="fas fa-users mr-2"></i>
+                        Portal RRHH
+                    </h1>
+                    <p class="text-green-100 text-sm mt-1">Recursos Humanos</p>
+                </div>
+
+                <nav class="space-y-2">
+                    <a href="portal_rrhh.html" class="flex items-center px-4 py-3 rounded-lg text-white hover:bg-white hover:bg-opacity-20 transition-colors">
+                        <i class="fas fa-tachometer-alt mr-3"></i>
+                        Dashboard
+                    </a>
+                    <a href="empleados.html" class="flex items-center px-4 py-3 rounded-lg text-white hover:bg-white hover:bg-opacity-20 transition-colors">
+                        <i class="fas fa-users mr-3"></i>
+                        Empleados
+                    </a>
+                    <a href="vacantes.html" class="flex items-center px-4 py-3 rounded-lg bg-white bg-opacity-20 text-white">
+                        <i class="fas fa-briefcase mr-3"></i>
+                        Vacantes
+                    </a>
+                    <a href="solicitudes.html" class="flex items-center px-4 py-3 rounded-lg text-white hover:bg-white hover:bg-opacity-20 transition-colors">
+                        <i class="fas fa-file-alt mr-3"></i>
+                        Solicitudes
+                    </a>
+                    <a href="evaluaciones.html" class="flex items-center px-4 py-3 rounded-lg text-white hover:bg-white hover:bg-opacity-20 transition-colors">
+                        <i class="fas fa-star mr-3"></i>
+                        Evaluaciones
+                    </a>
+                    <a href="reportes.html" class="flex items-center px-4 py-3 rounded-lg text-white hover:bg-white hover:bg-opacity-20 transition-colors">
+                        <i class="fas fa-chart-bar mr-3"></i>
+                        Reportes
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Main Content -->
+            <div class="flex-1 p-8 bg-gray-50">
+                <div class="max-w-7xl mx-auto">
+                    <!-- Header -->
+                    <div class="mb-8">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h2 class="text-3xl font-bold text-gray-900">Gestión de Vacantes</h2>
+                                <p class="text-gray-600 mt-2">Administra las ofertas de trabajo y procesos de reclutamiento</p>
+                            </div>
+                            <button
+                                @click="showAddDialog = true"
+                                class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
+                            >
+                                <i class="fas fa-plus mr-2"></i>
+                                Nueva Vacante
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                                    <i class="fas fa-briefcase text-xl"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-600">Total Vacantes</p>
+                                    <p class="text-2xl font-bold text-gray-900">{{ jobs.length }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-full bg-green-100 text-green-600">
+                                    <i class="fas fa-play text-xl"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-600">Activas</p>
+                                    <p class="text-2xl font-bold text-gray-900">{{ activeJobs }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                                    <i class="fas fa-pause text-xl"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-600">Pausadas</p>
+                                    <p class="text-2xl font-bold text-gray-900">{{ pausedJobs }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                                    <i class="fas fa-file-alt text-xl"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-600">Aplicaciones</p>
+                                    <p class="text-2xl font-bold text-gray-900">{{ totalApplications }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filters -->
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Buscar</label>
+                                <input
+                                    v-model="searchQuery"
+                                    type="text"
+                                    placeholder="Título, departamento..."
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                                >
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Departamento</label>
+                                <select
+                                    v-model="selectedDepartment"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                                >
+                                    <option value="">Todos los departamentos</option>
+                                    <option value="IT">Tecnología</option>
+                                    <option value="HR">Recursos Humanos</option>
+                                    <option value="Sales">Ventas</option>
+                                    <option value="Marketing">Marketing</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                                <select
+                                    v-model="selectedStatus"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                                >
+                                    <option value="">Todos los estados</option>
+                                    <option value="active">Activa</option>
+                                    <option value="paused">Pausada</option>
+                                    <option value="closed">Cerrada</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <button
+                                    @click="clearFilters"
+                                    class="w-full bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition-colors"
+                                >
+                                    Limpiar Filtros
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Jobs Grid -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                        <div
+                            v-for="job in filteredJobs"
+                            :key="job.id"
+                            class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
+                        >
+                            <div class="p-6">
+                                <div class="flex items-start justify-between mb-4">
+                                    <div class="flex-1">
+                                        <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ job.title }}</h3>
+                                        <p class="text-sm text-gray-600 mb-2">{{ job.department }}</p>
+                                        <p class="text-sm text-gray-500">{{ job.location }}</p>
+                                    </div>
+                                    <span :class="getStatusClasses(job.status)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                        {{ getStatusText(job.status) }}
+                                    </span>
+                                </div>
+
+                                <p class="text-sm text-gray-700 mb-4 line-clamp-3">{{ job.description }}</p>
+
+                                <div class="flex items-center justify-between text-sm text-gray-500 mb-4">
+                                    <span><i class="fas fa-calendar mr-1"></i> {{ formatDate(job.postedDate) }}</span>
+                                    <span><i class="fas fa-users mr-1"></i> {{ job.applications }} aplicaciones</span>
+                                </div>
+
+                                <div class="flex items-center justify-between">
+                                    <div class="flex space-x-2">
+                                        <button
+                                            @click="viewJob(job)"
+                                            class="text-green-600 hover:text-green-800 text-sm font-medium"
+                                        >
+                                            Ver Detalles
+                                        </button>
+                                        <button
+                                            @click="editJob(job)"
+                                            class="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                        >
+                                            Editar
+                                        </button>
+                                    </div>
+                                    <div class="flex space-x-1">
+                                        <button
+                                            @click="toggleJobStatus(job)"
+                                            :class="job.status === 'active' ? 'text-yellow-600 hover:text-yellow-800' : 'text-green-600 hover:text-green-800'"
+                                            class="text-sm"
+                                        >
+                                            <i :class="job.status === 'active' ? 'fas fa-pause' : 'fas fa-play'"></i>
+                                        </button>
+                                        <button
+                                            @click="deleteJob(job)"
+                                            class="text-red-600 hover:text-red-800 text-sm"
+                                        >
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add Job Dialog -->
+                    <div v-if="showAddDialog" class="fixed inset-0 z-50 overflow-y-auto">
+                        <div class="flex min-h-screen items-center justify-center p-4">
+                            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showAddDialog = false"></div>
+                            <div class="relative transform overflow-hidden rounded-lg bg-white shadow-xl transition-all w-full max-w-3xl">
+                                <div class="px-6 py-4 border-b border-gray-200">
+                                    <h3 class="text-lg font-medium text-gray-900">Crear Nueva Vacante</h3>
+                                </div>
+                                <div class="px-6 py-4 max-h-96 overflow-y-auto">
+                                    <form @submit.prevent="addJob" class="space-y-6">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Título del Puesto</label>
+                                                <input
+                                                    v-model="newJob.title"
+                                                    type="text"
+                                                    required
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                                                >
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Departamento</label>
+                                                <select
+                                                    v-model="newJob.department"
+                                                    required
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                                                >
+                                                    <option value="">Seleccionar departamento</option>
+                                                    <option value="IT">Tecnología</option>
+                                                    <option value="HR">Recursos Humanos</option>
+                                                    <option value="Sales">Ventas</option>
+                                                    <option value="Marketing">Marketing</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Ubicación</label>
+                                                <input
+                                                    v-model="newJob.location"
+                                                    type="text"
+                                                    required
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                                                >
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Contrato</label>
+                                                <select
+                                                    v-model="newJob.contractType"
+                                                    required
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                                                >
+                                                    <option value="">Seleccionar tipo</option>
+                                                    <option value="full-time">Tiempo Completo</option>
+                                                    <option value="part-time">Medio Tiempo</option>
+                                                    <option value="contract">Contrato</option>
+                                                    <option value="intern">Prácticas</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Salario Mínimo</label>
+                                                <input
+                                                    v-model="newJob.salaryMin"
+                                                    type="number"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                                                >
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Salario Máximo</label>
+                                                <input
+                                                    v-model="newJob.salaryMax"
+                                                    type="number"
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                                                >
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Descripción del Puesto</label>
+                                            <textarea
+                                                v-model="newJob.description"
+                                                rows="4"
+                                                required
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                                            ></textarea>
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Requisitos</label>
+                                            <textarea
+                                                v-model="newJob.requirements"
+                                                rows="3"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                                            ></textarea>
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Beneficios</label>
+                                            <textarea
+                                                v-model="newJob.benefits"
+                                                rows="3"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                                            ></textarea>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3">
+                                    <button
+                                        @click="showAddDialog = false"
+                                        class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition-colors"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        @click="addJob"
+                                        class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+                                    >
+                                        Publicar Vacante
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    searchQuery: '',
+                    selectedDepartment: '',
+                    selectedStatus: '',
+                    showAddDialog: false,
+                    newJob: {
+                        title: '',
+                        department: '',
+                        location: '',
+                        contractType: '',
+                        salaryMin: '',
+                        salaryMax: '',
+                        description: '',
+                        requirements: '',
+                        benefits: ''
+                    },
+                    jobs: [
+                        {
+                            id: 1,
+                            title: 'Desarrollador Frontend Senior',
+                            department: 'IT',
+                            location: 'Madrid, España',
+                            contractType: 'full-time',
+                            salaryMin: 45000,
+                            salaryMax: 60000,
+                            status: 'active',
+                            postedDate: '2024-01-15',
+                            applications: 12,
+                            description: 'Buscamos un desarrollador frontend con experiencia en React y Vue.js para unirse a nuestro equipo de desarrollo.',
+                            requirements: '3+ años de experiencia en React/Vue.js, TypeScript, CSS avanzado',
+                            benefits: 'Seguro médico, flexibilidad horaria, teletrabajo'
+                        },
+                        {
+                            id: 2,
+                            title: 'Especialista en Recursos Humanos',
+                            department: 'HR',
+                            location: 'Barcelona, España',
+                            contractType: 'full-time',
+                            salaryMin: 35000,
+                            salaryMax: 45000,
+                            status: 'active',
+                            postedDate: '2024-01-10',
+                            applications: 8,
+                            description: 'Oportunidad para un especialista en RRHH con experiencia en reclutamiento y gestión de personal.',
+                            requirements: 'Licenciatura en RRHH, 2+ años de experiencia, inglés fluido',
+                            benefits: 'Formación continua, ambiente dinámico, crecimiento profesional'
+                        },
+                        {
+                            id: 3,
+                            title: 'Gerente de Ventas',
+                            department: 'Sales',
+                            location: 'Valencia, España',
+                            contractType: 'full-time',
+                            salaryMin: 50000,
+                            salaryMax: 70000,
+                            status: 'paused',
+                            postedDate: '2024-01-05',
+                            applications: 15,
+                            description: 'Lidera el equipo de ventas y desarrolla estrategias para aumentar los ingresos de la empresa.',
+                            requirements: '5+ años en ventas, experiencia en gestión de equipos, resultados comprobables',
+                            benefits: 'Comisiones atractivas, coche de empresa, objetivos claros'
+                        },
+                        {
+                            id: 4,
+                            title: 'Coordinador de Marketing Digital',
+                            department: 'Marketing',
+                            location: 'Sevilla, España',
+                            contractType: 'part-time',
+                            salaryMin: 25000,
+                            salaryMax: 35000,
+                            status: 'active',
+                            postedDate: '2024-01-20',
+                            applications: 6,
+                            description: 'Gestiona las campañas de marketing digital y redes sociales de la empresa.',
+                            requirements: 'Experiencia en Google Ads, Facebook Ads, Analytics, creatividad',
+                            benefits: 'Horario flexible, proyectos variados, equipo joven'
+                        }
+                    ]
+                }
+            },
+            computed: {
+                filteredJobs() {
+                    return this.jobs.filter(job => {
+                        const matchesSearch = !this.searchQuery ||
+                            job.title.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+                            job.department.toLowerCase().includes(this.searchQuery.toLowerCase());
+
+                        const matchesDepartment = !this.selectedDepartment || job.department === this.selectedDepartment;
+                        const matchesStatus = !this.selectedStatus || job.status === this.selectedStatus;
+
+                        return matchesSearch && matchesDepartment && matchesStatus;
+                    });
+                },
+                activeJobs() {
+                    return this.jobs.filter(job => job.status === 'active').length;
+                },
+                pausedJobs() {
+                    return this.jobs.filter(job => job.status === 'paused').length;
+                },
+                totalApplications() {
+                    return this.jobs.reduce((total, job) => total + job.applications, 0);
+                }
+            },
+            methods: {
+                clearFilters() {
+                    this.searchQuery = '';
+                    this.selectedDepartment = '';
+                    this.selectedStatus = '';
+                },
+                getStatusClasses(status) {
+                    const classes = {
+                        active: 'bg-green-100 text-green-800',
+                        paused: 'bg-yellow-100 text-yellow-800',
+                        closed: 'bg-red-100 text-red-800'
+                    };
+                    return classes[status] || 'bg-gray-100 text-gray-800';
+                },
+                getStatusText(status) {
+                    const texts = {
+                        active: 'Activa',
+                        paused: 'Pausada',
+                        closed: 'Cerrada'
+                    };
+                    return texts[status] || status;
+                },
+                formatDate(dateString) {
+                    return new Date(dateString).toLocaleDateString('es-ES');
+                },
+                viewJob(job) {
+                    alert(`Ver detalles de: ${job.title}`);
+                },
+                editJob(job) {
+                    alert(`Editar: ${job.title}`);
+                },
+                deleteJob(job) {
+                    if (confirm(`¿Estás seguro de eliminar la vacante: ${job.title}?`)) {
+                        const index = this.jobs.findIndex(j => j.id === job.id);
+                        this.jobs.splice(index, 1);
+                    }
+                },
+                toggleJobStatus(job) {
+                    job.status = job.status === 'active' ? 'paused' : 'active';
+                },
+                addJob() {
+                    if (this.newJob.title && this.newJob.department && this.newJob.location && this.newJob.description) {
+                        const newId = Math.max(...this.jobs.map(j => j.id)) + 1;
+                        this.jobs.push({
+                            id: newId,
+                            ...this.newJob,
+                            status: 'active',
+                            postedDate: new Date().toISOString().split('T')[0],
+                            applications: 0
+                        });
+                        this.newJob = {
+                            title: '',
+                            department: '',
+                            location: '',
+                            contractType: '',
+                            salaryMin: '',
+                            salaryMax: '',
+                            description: '',
+                            requirements: '',
+                            benefits: ''
+                        };
+                        this.showAddDialog = false;
+                    }
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

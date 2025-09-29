@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html class="h-full" lang="es" style="margin: 0; padding: 0;">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portal RRHH - Recursos Humanos</title>
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="196x196"
+      href="/assets/frappe/images/frappe-framework-logo.svg"
+    />
+    <script type="module" crossorigin src="/assets/portal_rrhh/frontend/assets/index.a74ff11f.js"></script>
+    <link rel="modulepreload" href="/assets/portal_rrhh/frontend/assets/vendor.7cb305b3.js">
+    <link rel="stylesheet" href="/assets/portal_rrhh/frontend/assets/vendor.1f7d581e.css">
+    <link rel="stylesheet" href="/assets/portal_rrhh/frontend/assets/index.243ceeba.css">
+  </head>
+  <body class="overscroll-y-none no-scrollbar" style="margin: 0; padding: 0;">
+    <div id="app" class="h-full"></div>
+    <div id="modals"></div>
+    <div id="popovers"></div>
+
+    <script>
+      {% for key in boot %}
+        window["{{ key }}"] = {{ boot[key] | tojson }};
+      {% endfor %}
+
+      // SPA Routing Configuration
+      window.PORTAL_RRHH_CONFIG = {
+        currentPage: '{{ current_page or "dashboard" }}',
+        basePath: '/portal-rrhh',
+        routes: {
+          'dashboard': '/portal-rrhh',
+          'empleados': '/portal-rrhh/empleados',
+          'vacantes': '/portal-rrhh/vacantes',
+          'solicitudes': '/portal-rrhh/solicitudes',
+          'evaluaciones': '/portal-rrhh/evaluaciones',
+          'reportes': '/portal-rrhh/reportes'
+        }
+      };
+    </script>
+    <script src="/assets/portal_rrhh/spa-routes.js"></script>
+
+  </body>
+</html>

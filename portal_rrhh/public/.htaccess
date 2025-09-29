@@ -1,0 +1,11 @@
+RewriteEngine On
+
+# Handle Angular and Vue.js routes
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} ^/portal-rrhh/
+RewriteRule ^portal-rrhh/.*$ /portal-rrhh/ [L]
+
+# Handle static assets
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^(.*)$ - [L]

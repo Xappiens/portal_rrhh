@@ -55,6 +55,14 @@ app_license = "mit"
 # automatically create page for each record of this doctype
 # website_generators = ["Web Page"]
 
+# Web Pages
+# ----------
+# Add web pages to the website
+website_route_rules = [
+    {"from_route": "/portal-rrhh", "to_route": "portal_rrhh"},
+    {"from_route": "/portal-rrhh/<path:app_path>", "to_route": "portal_rrhh"},
+]
+
 # Jinja
 # ----------
 
