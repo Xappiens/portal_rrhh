@@ -69,6 +69,21 @@ const pageConfigs = {
     actionButton: 'Generar Reporte',
     actionIcon: 'file-text'
   },
+  'AIDashboard': {
+    title: 'AIDashboard',
+    actionButton: 'Ver AIDashboard',
+    actionIcon: 'computer'
+  },
+  'CVAnalysis': {
+    title: 'CV Analysis',
+    actionButton: 'Analizar CV',
+    actionIcon: 'file-text-icon'
+  },
+  'RecruitmentReports': {
+    title: 'Recruitment Reports',
+    actionButton: 'Generar Reporte',
+    actionIcon: 'file-text'
+  },
   'Departamentos': {
     title: 'Departamentos',
     actionButton: 'Nuevo Departamento',

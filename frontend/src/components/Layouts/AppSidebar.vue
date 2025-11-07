@@ -152,6 +152,21 @@ const links = [
     icon: ReportesIcon,
     to: 'Reportes',
   },
+  {
+  label: 'AIDashboard',
+  icon: ReportesIcon,
+  to: 'AIDashboard',
+  },
+  {
+  label: 'CV Analysis',
+  icon: 'file-text',
+  to: 'CVAnalysis',
+  },
+  {
+    label: 'Recruitment Reports',
+    icon: ReportesIcon,
+    to: 'RecruitmentReports',
+  }
 ]
 
 const allViews = computed(() => {

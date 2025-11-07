@@ -19,7 +19,9 @@ if (typeof window !== 'undefined') {
       '/portal-rrhh/vacantes': 'vacantes',
       '/portal-rrhh/solicitudes': 'solicitudes',
       '/portal-rrhh/evaluaciones': 'evaluaciones',
-      '/portal-rrhh/reportes': 'reportes'
+      '/portal-rrhh/reportes': 'reportes',
+      '/portal-rrhh/ai-dashboard': 'ai-dashboard',
+      '/portal-rrhh/cv-analysis': 'cv-analysis'
     };
 
     // Get current page from path or config

@@ -1,0 +1,1143 @@
+<template>
+  <div class="flex-1 p-6 bg-gray-50 overflow-y-auto">
+    <!-- Header -->
+    <div class="mb-8">
+      <h2 class="text-2xl font-semibold text-gray-900 mb-2">📄 AI CV Analysis</h2>
+      <p class="text-sm text-gray-600">Analyze candidate CVs using AI to evaluate fit and skills match</p>
+    </div>
+
+    <!-- Input Form Section -->
+    <div v-if="!effectiveJobApplicant || !effectiveJobOpening" class="mb-6">
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-2">📝 Enter Analysis Details</h3>
+        <p class="text-sm text-gray-600 mb-6">Select a Job Applicant and Job Opening from the dropdowns below. The Job Opening will auto-fill when you select a Job Applicant.</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div class="relative">
+            <label for="job-applicant-input" class="block text-sm font-medium text-gray-700 mb-2">
+              <span>👤</span> Job Applicant
+            </label>
+            <div class="flex gap-2">
+              <div class="relative flex-1">
+                <input
+                  id="job-applicant-input"
+                  type="text"
+                  v-model="applicantSearchText"
+                  @input="onApplicantSearchInput"
+                  @focus="onApplicantFocus"
+                  @blur="handleApplicantBlur"
+                  @keydown.enter.prevent="handleApplicantEnter"
+                  @keydown.escape="showApplicantDropdown = false"
+                  @keydown.down.prevent="navigateApplicantDropdown(1)"
+                  @keydown.up.prevent="navigateApplicantDropdown(-1)"
+                  :placeholder="formJobApplicant ? 'Type Job Applicant ID or name...' : 'Type Job Applicant ID or name manually...'"
+                  :disabled="loadingJobApplicants"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                />
+                <div v-if="formJobApplicant" class="absolute right-2 top-1/2 transform -translate-y-1/2">
+                  <button
+                    @click="clearApplicant"
+                    class="text-gray-400 hover:text-gray-600"
+                    type="button"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+              <button
+                type="button"
+                @click="toggleApplicantDropdown"
+                :disabled="loadingJobApplicants"
+                class="px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                title="Browse applicants list"
+              >
+                <span class="text-lg">▼</span>
+              </button>
+            </div>
+            <!-- Dropdown with filtered results - appears below the input -->
+            <div
+              v-if="showApplicantDropdown"
+              class="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+            >
+              <div v-if="filteredApplicants.length > 0" class="p-2">
+                <div class="text-xs text-gray-500 px-2 py-1 mb-1 font-semibold">Select from list ({{ filteredApplicants.length }} results):</div>
+              <div
+                v-for="(applicant, index) in filteredApplicants"
+                :key="applicant.name"
+                @mousedown.prevent="selectApplicant(applicant)"
+                :class="[
+                  'px-4 py-2 cursor-pointer border-b border-gray-100 last:border-b-0',
+                  index === highlightedApplicantIndex ? 'bg-blue-100' : 'hover:bg-blue-50'
+                ]"
+              >
+                <div class="font-medium text-gray-900">{{ applicant.applicant_name || applicant.name }}</div>
+                <div class="text-sm text-gray-500">{{ applicant.email_id || '' }}</div>
+                <div class="text-xs text-gray-400 font-mono">{{ applicant.name }}</div>
+              </div>
+              </div>
+              <div v-else-if="applicantSearchText" class="p-4 text-sm text-gray-500 text-center">
+                No applicants found matching "{{ applicantSearchText }}"
+              </div>
+              <div v-else class="p-4 text-sm text-gray-500 text-center">
+                Start typing to search, or scroll to browse all applicants
+              </div>
+            </div>
+            <p v-if="loadingJobApplicants" class="text-xs text-gray-500 mt-1">Loading applicants...</p>
+            <p v-if="formJobApplicant && !loadingJobApplicants" class="text-xs text-green-600 mt-1">
+              ✓ Selected: {{ getApplicantDisplayName(formJobApplicant) }}
+            </p>
+          </div>
+
+          <div class="relative">
+            <label for="job-opening-input" class="block text-sm font-medium text-gray-700 mb-2">
+              <span>💼</span> Job Opening
+            </label>
+            <div class="flex gap-2">
+              <div class="relative flex-1">
+                <input
+                  id="job-opening-input"
+                  type="text"
+                  v-model="openingSearchText"
+                  @input="onOpeningSearchInput"
+                  @focus="onOpeningFocus"
+                  @blur="handleOpeningBlur"
+                  @keydown.enter.prevent="handleOpeningEnter"
+                  @keydown.escape="showOpeningDropdown = false"
+                  @keydown.down.prevent="navigateOpeningDropdown(1)"
+                  @keydown.up.prevent="navigateOpeningDropdown(-1)"
+                  :placeholder="formJobOpening ? 'Type Job Opening ID or name...' : 'Type Job Opening ID or name manually...'"
+                  :disabled="loadingJobOpenings"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                />
+                <div v-if="formJobOpening" class="absolute right-2 top-1/2 transform -translate-y-1/2">
+                  <button
+                    @click="clearOpening"
+                    class="text-gray-400 hover:text-gray-600"
+                    type="button"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+              <button
+                type="button"
+                @click="toggleOpeningDropdown"
+                :disabled="loadingJobOpenings"
+                class="px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                title="Browse openings list"
+              >
+                <span class="text-lg">▼</span>
+              </button>
+            </div>
+            <!-- Dropdown with filtered results - appears below the input -->
+            <div
+              v-if="showOpeningDropdown"
+              class="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+            >
+              <div v-if="filteredOpenings.length > 0" class="p-2">
+                <div class="text-xs text-gray-500 px-2 py-1 mb-1 font-semibold">Select from list ({{ filteredOpenings.length }} results):</div>
+              <div
+                v-for="(opening, index) in filteredOpenings"
+                :key="opening.name"
+                @mousedown.prevent="selectOpening(opening)"
+                :class="[
+                  'px-4 py-2 cursor-pointer border-b border-gray-100 last:border-b-0',
+                  index === highlightedOpeningIndex ? 'bg-blue-100' : 'hover:bg-blue-50'
+                ]"
+              >
+                <div class="font-medium text-gray-900">{{ opening.job_title || opening.name }}</div>
+                <div class="text-sm text-gray-500">{{ opening.designation || '' }}</div>
+                <div class="text-xs text-gray-400 font-mono">{{ opening.name }}</div>
+              </div>
+              </div>
+              <div v-else-if="openingSearchText" class="p-4 text-sm text-gray-500 text-center">
+                No openings found matching "{{ openingSearchText }}"
+              </div>
+              <div v-else class="p-4 text-sm text-gray-500 text-center">
+                Start typing to search, or scroll to browse all openings
+              </div>
+            </div>
+            <p v-if="loadingJobOpenings" class="text-xs text-gray-500 mt-1">Loading openings...</p>
+            <p v-if="formJobOpening && !loadingJobOpenings" class="text-xs text-green-600 mt-1">
+              ✓ Selected: {{ getOpeningDisplayName(formJobOpening) }}
+            </p>
+          </div>
+        </div>
+
+        <button 
+          @click="startAnalysis" 
+          :disabled="!canAnalyze || isAnalyzing" 
+          class="w-full px-6 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+        >
+          <span v-if="isAnalyzing">🔄 Analyzing...</span>
+          <span v-else>🚀 Start AI Analysis</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Analysis Controls -->
+    <div v-else class="mb-6">
+      <div class="bg-white rounded-lg shadow p-6 mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="border-r border-gray-200 pr-6">
+            <div class="flex items-center gap-3 mb-4 pb-3 border-b border-gray-200">
+              <span class="text-2xl">👤</span>
+              <h4 class="text-lg font-semibold text-gray-900">Job Applicant</h4>
+              <span class="text-xs text-gray-500 font-mono ml-auto">{{ effectiveJobApplicant }}</span>
+            </div>
+            <div v-if="applicantData" class="space-y-2">
+              <p class="text-sm"><span class="font-medium text-gray-700">Name:</span> <span class="text-gray-900">{{ applicantData.applicant_name || 'N/A' }}</span></p>
+              <p class="text-sm"><span class="font-medium text-gray-700">Email:</span> <span class="text-gray-900">{{ applicantData.email_id || 'N/A' }}</span></p>
+              <p v-if="applicantData.phone_number" class="text-sm"><span class="font-medium text-gray-700">Phone:</span> <span class="text-gray-900">{{ applicantData.phone_number }}</span></p>
+              <p v-if="applicantData.designation" class="text-sm"><span class="font-medium text-gray-700">Designation:</span> <span class="text-gray-900">{{ applicantData.designation }}</span></p>
+              <p v-if="applicantData.status" class="text-sm"><span class="font-medium text-gray-700">Status:</span> <span class="text-gray-900">{{ applicantData.status }}</span></p>
+            </div>
+            <div v-else class="text-sm text-gray-500 italic">Loading applicant data...</div>
+          </div>
+
+          <div>
+            <div class="flex items-center gap-3 mb-4 pb-3 border-b border-gray-200">
+              <span class="text-2xl">💼</span>
+              <h4 class="text-lg font-semibold text-gray-900">Job Opening</h4>
+              <span class="text-xs text-gray-500 font-mono ml-auto">{{ effectiveJobOpening }}</span>
+            </div>
+            <div v-if="jobOpeningData" class="space-y-2">
+              <p class="text-sm"><span class="font-medium text-gray-700">Title:</span> <span class="text-gray-900">{{ jobOpeningData.job_title || 'N/A' }}</span></p>
+              <p v-if="jobOpeningData.designation" class="text-sm"><span class="font-medium text-gray-700">Designation:</span> <span class="text-gray-900">{{ jobOpeningData.designation }}</span></p>
+              <p v-if="jobOpeningData.company" class="text-sm"><span class="font-medium text-gray-700">Company:</span> <span class="text-gray-900">{{ jobOpeningData.company }}</span></p>
+              <p v-if="jobOpeningData.department" class="text-sm"><span class="font-medium text-gray-700">Department:</span> <span class="text-gray-900">{{ jobOpeningData.department }}</span></p>
+              <p v-if="jobOpeningData.location" class="text-sm"><span class="font-medium text-gray-700">Location:</span> <span class="text-gray-900">{{ jobOpeningData.location }}</span></p>
+              <p v-if="jobOpeningData.employment_type" class="text-sm"><span class="font-medium text-gray-700">Type:</span> <span class="text-gray-900">{{ jobOpeningData.employment_type }}</span></p>
+              <p v-if="jobOpeningData.status" class="text-sm"><span class="font-medium text-gray-700">Status:</span> <span class="text-gray-900">{{ jobOpeningData.status }}</span></p>
+            </div>
+            <div v-else class="text-sm text-gray-500 italic">Loading job opening data...</div>
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-3 flex-wrap">
+        <button @click="analyzeCV" :disabled="isAnalyzing" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed">
+          <span v-if="isAnalyzing">🔄 Analyzing...</span>
+          <span v-else>🔍 Analyze CV</span>
+        </button>
+        <button @click="clearInputs" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">Change IDs</button>
+        <button v-if="analysis" @click="reloadAnalysis" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">🔄 Reload</button>
+      </div>
+    </div>
+
+    <!-- Error Message -->
+    <div v-if="error" class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-xl">⚠️</span>
+        <div>
+          <strong class="text-red-800">Error:</strong> 
+          <span class="text-red-700">{{ error }}</span>
+        </div>
+      </div>
+      <button @click="clearError" class="text-red-600 hover:text-red-800">✕</button>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="isAnalyzing && !analysis" class="bg-white rounded-lg shadow p-8 text-center mb-6">
+      <div class="relative inline-block mb-6">
+        <div class="w-16 h-16 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
+      </div>
+      <h3 class="text-xl font-semibold text-gray-900 mb-2">🤖 AI is Analyzing CV...</h3>
+      <p class="text-sm text-gray-600 mb-6">This is a real analysis using OpenAI GPT-4</p>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-left">
+        <div class="p-3 rounded-lg" :class="pollingAttempts > 0 ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-500'">
+          <span class="mr-2">✓</span> Request queued
+        </div>
+        <div class="p-3 rounded-lg" :class="pollingAttempts > 2 ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-500'">
+          <span class="mr-2">⏳</span> Processing CV
+        </div>
+        <div class="p-3 rounded-lg" :class="pollingAttempts > 5 ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-500'">
+          <span class="mr-2">⏳</span> Calling OpenAI
+        </div>
+        <div class="p-3 rounded-lg" :class="pollingAttempts > 8 ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-500'">
+          <span class="mr-2">⏳</span> Parsing results
+        </div>
+      </div>
+      <div class="mb-4">
+        <p class="text-sm text-gray-600 mb-2">Checking status... ({{ pollingAttempts }}/30 attempts, ~{{ Math.round(pollingAttempts * 2) }}s elapsed)</p>
+        <div class="w-full bg-gray-200 rounded-full h-2">
+          <div class="bg-blue-500 h-2 rounded-full transition-all" :style="{width: Math.min((pollingAttempts / 30) * 100, 100) + '%'}"></div>
+        </div>
+      </div>
+      <button v-if="pollingAttempts > 5" @click="cancelAnalysis" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">Cancel Analysis</button>
+    </div>
+
+    <!-- Analysis Results -->
+    <div v-if="analysis" class="space-y-6">
+      <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
+          <h3 v-if="analysis.status === 'Completed'" class="text-xl font-semibold text-gray-900">✅ Analysis Complete</h3>
+          <h3 v-else-if="analysis.status === 'Analyzing'" class="text-xl font-semibold text-gray-900">⏳ Analysis In Progress</h3>
+          <h3 v-else-if="analysis.status === 'Failed'" class="text-xl font-semibold text-gray-900">❌ Analysis Failed</h3>
+          <h3 v-else class="text-xl font-semibold text-gray-900">📊 Analysis (Status: {{ analysis.status }})</h3>
+          <div v-if="analysis.analysis_timestamp" class="text-sm text-gray-500">
+            Analyzed on {{ formatDate(analysis.analysis_timestamp) }}
+          </div>
+        </div>
+
+        <!-- Debug Info -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6 text-sm text-blue-900">
+          <p class="font-semibold mb-2">🔍 Debug Info:</p>
+          <p><strong>Status:</strong> {{ analysis.status }}</p>
+          <p><strong>Analysis ID:</strong> {{ analysis.name }}</p>
+          <p><strong>Has text:</strong> {{ analysis.cv_analysis_text ? 'Yes (' + analysis.cv_analysis_text.length + ' chars)' : 'No' }}</p>
+          <p><strong>Skills:</strong> {{ analysis.skills_match_percentage || 'N/A' }}%</p>
+          <p><strong>Experience:</strong> {{ analysis.experience_relevance || 'N/A' }}</p>
+          <p><strong>Education:</strong> {{ analysis.education_match || 'N/A' }}</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div class="bg-gray-50 rounded-lg p-4">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xl">🎯</span>
+              <h4 class="text-sm font-medium text-gray-700">Skills Match</h4>
+            </div>
+            <div class="text-3xl font-bold text-gray-900 mb-2">{{ analysis.skills_match_percentage || 0 }}%</div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+              <div class="bg-blue-500 h-2 rounded-full" :style="{width: (analysis.skills_match_percentage || 0) + '%'}"></div>
+            </div>
+          </div>
+
+          <div class="bg-gray-50 rounded-lg p-4">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xl">💼</span>
+              <h4 class="text-sm font-medium text-gray-700">Experience</h4>
+            </div>
+            <div class="text-2xl mb-2">
+              <span v-for="i in 5" :key="i" :class="i <= (analysis.experience_relevance || 0) ? 'text-yellow-500' : 'text-gray-300'">★</span>
+            </div>
+            <div class="text-sm font-semibold text-gray-700">{{ analysis.experience_relevance || 0 }}/5</div>
+          </div>
+
+          <div class="bg-gray-50 rounded-lg p-4">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xl">🎓</span>
+              <h4 class="text-sm font-medium text-gray-700">Education</h4>
+            </div>
+            <div class="text-2xl mb-2">
+              <span v-for="i in 5" :key="i" :class="i <= (analysis.education_match || 0) ? 'text-yellow-500' : 'text-gray-300'">★</span>
+            </div>
+            <div class="text-sm font-semibold text-gray-700">{{ analysis.education_match || 0 }}/5</div>
+          </div>
+
+          <div class="bg-gray-50 rounded-lg p-4">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xl">📊</span>
+              <h4 class="text-sm font-medium text-gray-700">AI Confidence</h4>
+            </div>
+            <div class="text-3xl font-bold text-gray-900 mb-2">{{ analysis.ai_confidence_score || 0 }}%</div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+              <div class="bg-green-500 h-2 rounded-full" :style="{width: (analysis.ai_confidence_score || 0) + '%'}"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-gray-50 rounded-lg p-6 mb-6">
+          <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">📋 Detailed AI Analysis</h4>
+          <div v-if="analysis.cv_analysis_text && analysis.cv_analysis_text.trim().length > 0" class="text-gray-700 leading-relaxed whitespace-pre-wrap" v-html="analysis.cv_analysis_text"></div>
+          <div v-else class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800">
+            <p class="font-semibold mb-2">⚠️ Analysis completed but no detailed text was generated.</p>
+            <p class="text-sm mb-2">This might happen if:</p>
+            <ul class="text-sm list-disc list-inside mb-3">
+              <li>The AI response was incomplete</li>
+              <li>There was an error parsing the AI response</li>
+              <li>The analysis data is still being processed</li>
+            </ul>
+            <button @click="reloadAnalysis" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">🔄 Reload Analysis</button>
+          </div>
+        </div>
+
+        <div class="bg-gray-50 rounded-lg p-6">
+          <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">💡 AI Recommendations</h4>
+          <div class="text-gray-700 leading-relaxed">
+            <p v-if="analysis.ai_recommendations && analysis.ai_recommendations.trim().length > 0">
+              {{ analysis.ai_recommendations }}
+            </p>
+            <p v-else class="text-gray-500 italic">
+              ⚠️ No recommendations were generated for this analysis.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { call } from 'frappe-ui'
+
+export default {
+  name: 'CVAnalysis',
+  props: {
+    jobApplicant: String,
+    jobOpening: String
+  },
+  data() {
+    return {
+      analysis: null,
+      isAnalyzing: false,
+      error: null,
+      formJobApplicant: '',
+      formJobOpening: '',
+      applicantSearchText: '',
+      openingSearchText: '',
+      showApplicantDropdown: false,
+      showOpeningDropdown: false,
+      highlightedApplicantIndex: -1,
+      highlightedOpeningIndex: -1,
+      pollingAttempts: 0,
+      pollingInterval: null,
+      applicantData: null,
+      jobOpeningData: null,
+      loadingApplicant: false,
+      loadingJobOpening: false,
+      jobApplicantsList: [],
+      jobOpeningsList: [],
+      loadingJobApplicants: false,
+      loadingJobOpenings: false
+    }
+  },
+  computed: {
+    effectiveJobApplicant() {
+      return this.formJobApplicant || 
+             this.jobApplicant || 
+             this.$route.params.jobApplicant || 
+             this.$route.query.applicant || 
+             ''
+    },
+    effectiveJobOpening() {
+      return this.formJobOpening || 
+             this.jobOpening || 
+             this.$route.params.jobOpening || 
+             this.$route.query.opening || 
+             ''
+    },
+    canAnalyze() {
+      return this.formJobApplicant && this.formJobOpening
+    },
+    filteredApplicants() {
+      if (!this.applicantSearchText) {
+        // Show all when no search text (user can browse)
+        return this.jobApplicantsList
+      }
+      const searchLower = this.applicantSearchText.toLowerCase()
+      return this.jobApplicantsList.filter(applicant => {
+        const name = (applicant.applicant_name || '').toLowerCase()
+        const email = (applicant.email_id || '').toLowerCase()
+        const id = (applicant.name || '').toLowerCase()
+        return name.includes(searchLower) || email.includes(searchLower) || id.includes(searchLower)
+      })
+    },
+    filteredOpenings() {
+      if (!this.openingSearchText) {
+        // Show all when no search text (user can browse)
+        return this.jobOpeningsList
+      }
+      const searchLower = this.openingSearchText.toLowerCase()
+      return this.jobOpeningsList.filter(opening => {
+        const title = (opening.job_title || '').toLowerCase()
+        const designation = (opening.designation || '').toLowerCase()
+        const id = (opening.name || '').toLowerCase()
+        return title.includes(searchLower) || designation.includes(searchLower) || id.includes(searchLower)
+      })
+    },
+    hasValidData() {
+      if (this.analysis && this.analysis.status === 'Completed') {
+        return true
+      }
+      return this.analysis && (
+        this.analysis.skills_match_percentage ||
+        this.analysis.experience_relevance ||
+        this.analysis.education_match ||
+        (this.analysis.cv_analysis_text && this.analysis.cv_analysis_text.trim().length > 0)
+      )
+    }
+  },
+  mounted() {
+    // Load job applicants and job openings lists
+    this.loadJobApplicantsList()
+    this.loadJobOpeningsList()
+    
+    if (this.$route.query.analysisId) {
+      this.loadAnalysisById(this.$route.query.analysisId)
+    } else if (this.effectiveJobApplicant && this.effectiveJobOpening) {
+      this.loadApplicantAndJobData()
+    }
+  },
+  watch: {
+    effectiveJobApplicant(newVal) {
+      if (newVal && !this.applicantData) {
+        this.loadApplicantData()
+      }
+    },
+    effectiveJobOpening(newVal) {
+      if (newVal && !this.jobOpeningData) {
+        this.loadJobOpeningData()
+      }
+    }
+  },
+  beforeUnmount() {
+    if (this.pollingInterval) {
+      clearTimeout(this.pollingInterval)
+    }
+  },
+  methods: {
+    startAnalysis() {
+      if (this.canAnalyze) {
+        this.analyzeCV()
+      }
+    },
+    clearInputs() {
+      this.formJobApplicant = ''
+      this.formJobOpening = ''
+      this.applicantSearchText = ''
+      this.openingSearchText = ''
+      this.showApplicantDropdown = false
+      this.showOpeningDropdown = false
+      this.analysis = null
+      this.error = null
+      this.isAnalyzing = false
+      this.applicantData = null
+      this.jobOpeningData = null
+    },
+    clearApplicant() {
+      this.formJobApplicant = ''
+      this.applicantSearchText = ''
+      this.showApplicantDropdown = false
+      this.applicantData = null
+    },
+    clearOpening() {
+      this.formJobOpening = ''
+      this.openingSearchText = ''
+      this.showOpeningDropdown = false
+      this.jobOpeningData = null
+    },
+    selectApplicant(applicant) {
+      this.formJobApplicant = applicant.name
+      this.applicantSearchText = applicant.applicant_name || applicant.name
+      this.showApplicantDropdown = false
+      this.highlightedApplicantIndex = -1
+      this.onJobApplicantChange()
+    },
+    selectOpening(opening) {
+      this.formJobOpening = opening.name
+      this.openingSearchText = opening.job_title || opening.name
+      this.showOpeningDropdown = false
+      this.highlightedOpeningIndex = -1
+      this.onJobOpeningChange()
+    },
+    onApplicantSearchInput() {
+      // User is typing - allow manual entry
+      // If they type something that looks like an ID, accept it
+      const trimmed = this.applicantSearchText.trim()
+      if (trimmed) {
+        // Check if it's an exact match first
+        const exactMatch = this.jobApplicantsList.find(a => {
+          const searchLower = trimmed.toLowerCase()
+          const nameMatch = a.name && a.name.toLowerCase() === searchLower
+          const applicantNameMatch = a.applicant_name && a.applicant_name.toLowerCase() === searchLower
+          const emailMatch = a.email_id && a.email_id.toLowerCase() === searchLower
+          return nameMatch || applicantNameMatch || emailMatch
+        })
+        
+        if (exactMatch) {
+          // Found exact match - set it
+          this.formJobApplicant = exactMatch.name
+          this.applicantSearchText = exactMatch.applicant_name || exactMatch.name
+        } else {
+          // Allow manual entry - user can type any ID or name
+          // Set it as the form value (will be validated on submit)
+          this.formJobApplicant = trimmed
+        }
+      } else {
+        // Empty - clear selection
+        this.formJobApplicant = ''
+      }
+      
+      // Show dropdown if it's open, but don't force it
+      if (this.showApplicantDropdown) {
+        this.highlightedApplicantIndex = -1
+      }
+    },
+    onApplicantFocus() {
+      // Show dropdown when focused, but user can still type freely
+      if (this.jobApplicantsList.length > 0) {
+        this.showApplicantDropdown = true
+      }
+    },
+    onOpeningSearchInput() {
+      // User is typing - allow manual entry
+      // If they type something that looks like an ID, accept it
+      const trimmed = this.openingSearchText.trim()
+      if (trimmed) {
+        // Check if it's an exact match first
+        const exactMatch = this.jobOpeningsList.find(o => {
+          const searchLower = trimmed.toLowerCase()
+          const nameMatch = o.name && o.name.toLowerCase() === searchLower
+          const titleMatch = o.job_title && o.job_title.toLowerCase() === searchLower
+          const designationMatch = o.designation && o.designation.toLowerCase() === searchLower
+          return nameMatch || titleMatch || designationMatch
+        })
+        
+        if (exactMatch) {
+          // Found exact match - set it
+          this.formJobOpening = exactMatch.name
+          this.openingSearchText = exactMatch.job_title || exactMatch.name
+        } else {
+          // Allow manual entry - user can type any ID or name
+          // Set it as the form value (will be validated on submit)
+          this.formJobOpening = trimmed
+        }
+      } else {
+        // Empty - clear selection
+        this.formJobOpening = ''
+      }
+      
+      // Show dropdown if it's open, but don't force it
+      if (this.showOpeningDropdown) {
+        this.highlightedOpeningIndex = -1
+      }
+    },
+    onOpeningFocus() {
+      // Show dropdown when focused, but user can still type freely
+      if (this.jobOpeningsList.length > 0) {
+        this.showOpeningDropdown = true
+      }
+    },
+    toggleApplicantDropdown() {
+      this.showApplicantDropdown = !this.showApplicantDropdown
+      if (this.showApplicantDropdown) {
+        this.highlightedApplicantIndex = -1
+      }
+    },
+    toggleOpeningDropdown() {
+      this.showOpeningDropdown = !this.showOpeningDropdown
+      if (this.showOpeningDropdown) {
+        this.highlightedOpeningIndex = -1
+      }
+    },
+    handleApplicantBlur() {
+      // Delay hiding dropdown to allow click events
+      setTimeout(() => {
+        this.showApplicantDropdown = false
+        // If formJobApplicant is set, update search text to show selected value
+        if (this.formJobApplicant) {
+          const applicant = this.jobApplicantsList.find(a => a.name === this.formJobApplicant)
+          if (applicant) {
+            this.applicantSearchText = applicant.applicant_name || applicant.name
+          }
+        }
+      }, 200)
+    },
+    handleOpeningBlur() {
+      // Delay hiding dropdown to allow click events
+      setTimeout(() => {
+        this.showOpeningDropdown = false
+        // If formJobOpening is set, update search text to show selected value
+        if (this.formJobOpening) {
+          const opening = this.jobOpeningsList.find(o => o.name === this.formJobOpening)
+          if (opening) {
+            this.openingSearchText = opening.job_title || opening.name
+          }
+        }
+      }, 200)
+    },
+    getApplicantDisplayName(applicantId) {
+      const applicant = this.jobApplicantsList.find(a => a.name === applicantId)
+      if (applicant) {
+        return applicant.applicant_name || applicant.name
+      }
+      return applicantId
+    },
+    getOpeningDisplayName(openingId) {
+      const opening = this.jobOpeningsList.find(o => o.name === openingId)
+      if (opening) {
+        return opening.job_title || opening.name
+      }
+      return openingId
+    },
+    handleApplicantEnter() {
+      if (this.highlightedApplicantIndex >= 0 && this.filteredApplicants[this.highlightedApplicantIndex]) {
+        this.selectApplicant(this.filteredApplicants[this.highlightedApplicantIndex])
+      } else if (this.filteredApplicants.length > 0) {
+        // Select first result if nothing is highlighted
+        this.selectApplicant(this.filteredApplicants[0])
+      } else if (this.applicantSearchText.trim()) {
+        // If user typed something and pressed enter, try to use it as ID
+        this.formJobApplicant = this.applicantSearchText.trim()
+        this.showApplicantDropdown = false
+        this.onJobApplicantChange()
+      }
+    },
+    handleOpeningEnter() {
+      if (this.highlightedOpeningIndex >= 0 && this.filteredOpenings[this.highlightedOpeningIndex]) {
+        this.selectOpening(this.filteredOpenings[this.highlightedOpeningIndex])
+      } else if (this.filteredOpenings.length > 0) {
+        // Select first result if nothing is highlighted
+        this.selectOpening(this.filteredOpenings[0])
+      } else if (this.openingSearchText.trim()) {
+        // If user typed something and pressed enter, try to use it as ID
+        this.formJobOpening = this.openingSearchText.trim()
+        this.showOpeningDropdown = false
+        this.onJobOpeningChange()
+      }
+    },
+    navigateApplicantDropdown(direction) {
+      if (!this.showApplicantDropdown || this.filteredApplicants.length === 0) return
+      
+      this.highlightedApplicantIndex += direction
+      
+      if (this.highlightedApplicantIndex < 0) {
+        this.highlightedApplicantIndex = this.filteredApplicants.length - 1
+      } else if (this.highlightedApplicantIndex >= this.filteredApplicants.length) {
+        this.highlightedApplicantIndex = 0
+      }
+      
+      // Scroll highlighted item into view
+      this.$nextTick(() => {
+        const dropdown = document.querySelector('#job-applicant-search')?.parentElement?.querySelector('.absolute')
+        if (dropdown) {
+          const highlightedItem = dropdown.children[this.highlightedApplicantIndex]
+          if (highlightedItem) {
+            highlightedItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+          }
+        }
+      })
+    },
+    navigateOpeningDropdown(direction) {
+      if (!this.showOpeningDropdown || this.filteredOpenings.length === 0) return
+      
+      this.highlightedOpeningIndex += direction
+      
+      if (this.highlightedOpeningIndex < 0) {
+        this.highlightedOpeningIndex = this.filteredOpenings.length - 1
+      } else if (this.highlightedOpeningIndex >= this.filteredOpenings.length) {
+        this.highlightedOpeningIndex = 0
+      }
+      
+      // Scroll highlighted item into view
+      this.$nextTick(() => {
+        const dropdown = document.querySelector('#job-opening-search')?.parentElement?.querySelector('.absolute')
+        if (dropdown) {
+          const highlightedItem = dropdown.children[this.highlightedOpeningIndex]
+          if (highlightedItem) {
+            highlightedItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+          }
+        }
+      })
+    },
+    clearError() {
+      this.error = null
+    },
+    cancelAnalysis() {
+      if (this.pollingInterval) {
+        clearTimeout(this.pollingInterval)
+        this.pollingInterval = null
+      }
+      this.isAnalyzing = false
+      this.pollingAttempts = 0
+      this.error = 'Analysis cancelled'
+    },
+    async analyzeCV() {
+      if (!this.effectiveJobApplicant || !this.effectiveJobOpening) {
+        this.error = 'Please provide both Job Applicant ID and Job Opening ID'
+        return
+      }
+
+      await this.loadApplicantAndJobData()
+
+      this.isAnalyzing = true
+      this.error = null
+      this.pollingAttempts = 0
+      
+      try {
+        const data = await call('ai_hr_recruitment.ai_hr_recruitment.api.cv_analysis.analyze_cv_with_ai', {
+          job_applicant: this.effectiveJobApplicant,
+          job_opening: this.effectiveJobOpening
+        })
+  
+        if (data && data.status) {
+          if (data.status === 'processing') {
+            this.pollAnalysisStatus(data.analysis_id)
+          } else if (data.status === 'exists') {
+            await this.loadAnalysis(data.analysis_id)
+            this.isAnalyzing = false
+          } else if (data.status === 'error') {
+            this.error = data.message || 'Analysis failed to start'
+            this.isAnalyzing = false
+          }
+        } else {
+          this.error = 'Unexpected response from server'
+          this.isAnalyzing = false
+        }
+      } catch (error) {
+        console.error('Error analyzing CV:', error)
+        this.error = error.message || 'Failed to start CV analysis. Please check your connection and try again.'
+        this.isAnalyzing = false
+      }
+    },
+  
+    async pollAnalysisStatus(analysisId) {
+      const maxAttempts = 30
+      this.pollingAttempts = 0
+      console.log('Starting polling for analysis:', analysisId)
+  
+      const poll = async () => {
+        if (!this.isAnalyzing) {
+          console.log('Polling stopped - isAnalyzing is false')
+          return
+        }
+
+        try {
+          console.log(`Polling attempt ${this.pollingAttempts + 1}/${maxAttempts} for analysis ${analysisId}`)
+          const analysis = await call('ai_hr_recruitment.ai_hr_recruitment.api.cv_analysis.get_cv_analysis', {
+            analysis_id: analysisId
+          })
+  
+          this.pollingAttempts++
+          console.log('Analysis status:', analysis ? analysis.status : 'null', 'Full data:', analysis)
+  
+          if (analysis && analysis.status) {
+            if (analysis.status === 'Completed') {
+              console.log('✅ Analysis completed! Full data:', analysis)
+              this.analysis = analysis
+              
+              if (analysis.job_applicant) {
+                this.formJobApplicant = analysis.job_applicant
+                const applicant = this.jobApplicantsList.find(a => a.name === analysis.job_applicant)
+                if (applicant) {
+                  this.applicantSearchText = applicant.applicant_name || applicant.name
+                }
+                this.loadApplicantData()
+              }
+              if (analysis.job_opening) {
+                this.formJobOpening = analysis.job_opening
+                const opening = this.jobOpeningsList.find(o => o.name === analysis.job_opening)
+                if (opening) {
+                  this.openingSearchText = opening.job_title || opening.name
+                }
+                this.loadJobOpeningData()
+              }
+              
+              this.isAnalyzing = false
+              this.pollingInterval = null
+              this.pollingAttempts = 0
+              return
+            } else if (analysis.status === 'Failed') {
+              console.log('❌ Analysis failed')
+              this.error = this.getErrorMessage(analysis)
+              this.isAnalyzing = false
+              this.pollingInterval = null
+              return
+            } else if (analysis.status === 'Analyzing' || analysis.status === 'Pending') {
+              console.log(`⏳ Still analyzing... (attempt ${this.pollingAttempts}/${maxAttempts})`)
+              if (this.pollingAttempts < maxAttempts) {
+                this.pollingInterval = setTimeout(poll, 2000)
+              } else {
+                this.error = `Analysis still processing after ${maxAttempts * 2} seconds. The background workers might not be running. Please check if 'bench start' is running.`
+                this.isAnalyzing = false
+                this.pollingInterval = null
+                this.analysis = analysis
+              }
+              return
+            } else {
+              console.log('⚠️ Unknown status:', analysis.status)
+              if (this.pollingAttempts < maxAttempts) {
+                this.pollingInterval = setTimeout(poll, 2000)
+              } else {
+                this.error = `Unknown analysis status: ${analysis.status}. Showing current data anyway.`
+                this.analysis = analysis
+                this.isAnalyzing = false
+                this.pollingInterval = null
+              }
+              return
+            }
+          } else {
+            console.log('⚠️ No analysis data or status')
+            if (this.pollingAttempts < maxAttempts) {
+              this.pollingInterval = setTimeout(poll, 2000)
+            } else {
+              this.error = 'Could not retrieve analysis status after multiple attempts'
+              this.isAnalyzing = false
+              this.pollingInterval = null
+            }
+            return
+          }
+        } catch (error) {
+          console.error('❌ Error polling:', error)
+          if (this.pollingAttempts < maxAttempts && this.isAnalyzing) {
+            console.log(`Retrying after error (attempt ${this.pollingAttempts}/${maxAttempts})...`)
+            this.pollingInterval = setTimeout(poll, 3000)
+          } else {
+            this.error = 'Error checking analysis status: ' + (error.message || 'Unknown error')
+            this.isAnalyzing = false
+            this.pollingInterval = null
+          }
+        }
+      }
+  
+      poll()
+    },
+  
+    async loadAnalysis(analysisId) {
+      try {
+        this.error = null
+        console.log('Loading analysis:', analysisId)
+        const analysis = await call('ai_hr_recruitment.ai_hr_recruitment.api.cv_analysis.get_cv_analysis', {
+          analysis_id: analysisId
+        })
+        
+        console.log('Loaded analysis:', analysis)
+        
+        if (analysis) {
+          this.analysis = analysis
+          if (analysis.job_applicant) {
+            this.formJobApplicant = analysis.job_applicant
+            const applicant = this.jobApplicantsList.find(a => a.name === analysis.job_applicant)
+            if (applicant) {
+              this.applicantSearchText = applicant.applicant_name || applicant.name
+            }
+            this.loadApplicantData()
+          }
+          if (analysis.job_opening) {
+            this.formJobOpening = analysis.job_opening
+            const opening = this.jobOpeningsList.find(o => o.name === analysis.job_opening)
+            if (opening) {
+              this.openingSearchText = opening.job_title || opening.name
+            }
+            this.loadJobOpeningData()
+          }
+          
+          if (analysis.status === 'Analyzing' || analysis.status === 'Pending') {
+            console.log('Analysis still processing, starting polling...')
+            this.isAnalyzing = true
+            this.pollAnalysisStatus(analysisId)
+          } else if (analysis.status === 'Completed') {
+            console.log('✅ Analysis already completed, showing results')
+            this.isAnalyzing = false
+          } else {
+            this.isAnalyzing = false
+            if (analysis.status === 'Failed') {
+              this.error = this.getErrorMessage(analysis)
+            }
+          }
+        } else {
+          this.error = 'Analysis not found'
+        }
+      } catch (error) {
+        console.error('Error loading analysis:', error)
+        this.error = 'Failed to load analysis: ' + (error.message || 'Unknown error')
+      }
+    },
+
+    async loadAnalysisById(analysisId = null) {
+      if (!analysisId) {
+        this.error = 'Please provide an Analysis ID'
+        return
+      }
+
+      this.isAnalyzing = true
+      this.error = null
+      await this.loadAnalysis(analysisId)
+    },
+
+    async reloadAnalysis() {
+      if (this.analysis && this.analysis.name) {
+        this.isAnalyzing = true
+        await this.loadAnalysis(this.analysis.name)
+        // Don't set isAnalyzing = false here - loadAnalysis already manages it:
+        // - Sets it to false if status is Completed/Failed
+        // - Sets it to true and starts polling if status is Pending/Analyzing
+      }
+    },
+
+    getErrorMessage(analysis) {
+      if (analysis.cv_analysis_text) {
+        if (analysis.cv_analysis_text.includes('disabled')) {
+          return 'CV Analysis is disabled in AI HR Settings'
+        }
+        if (analysis.cv_analysis_text.includes('API key')) {
+          return 'OpenAI API key not configured in AI HR Settings'
+        }
+        if (analysis.cv_analysis_text.includes('rate limit')) {
+          return 'OpenAI API rate limit exceeded. Please wait and try again'
+        }
+      }
+      return 'Analysis failed. Please try again or check error logs'
+    },
+
+    formatDate(dateString) {
+      if (!dateString) return 'N/A'
+      try {
+        const date = new Date(dateString)
+        return date.toLocaleString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      } catch {
+        return dateString
+      }
+    },
+
+    async loadApplicantData() {
+      if (!this.effectiveJobApplicant) return
+      
+      this.loadingApplicant = true
+      try {
+        const applicant = await call('frappe.client.get', {
+          doctype: 'Job Applicant',
+          name: this.effectiveJobApplicant
+        })
+        this.applicantData = applicant
+        console.log('Loaded applicant data:', applicant)
+      } catch (error) {
+        console.error('Error loading applicant data:', error)
+        this.applicantData = null
+      } finally {
+        this.loadingApplicant = false
+      }
+    },
+
+    async loadJobOpeningData() {
+      if (!this.effectiveJobOpening) return
+      
+      this.loadingJobOpening = true
+      try {
+        const jobOpening = await call('frappe.client.get', {
+          doctype: 'Job Opening',
+          name: this.effectiveJobOpening
+        })
+        this.jobOpeningData = jobOpening
+        console.log('Loaded job opening data:', jobOpening)
+      } catch (error) {
+        console.error('Error loading job opening data:', error)
+        this.jobOpeningData = null
+      } finally {
+        this.loadingJobOpening = false
+      }
+    },
+
+    async loadApplicantAndJobData() {
+      if (this.effectiveJobApplicant) {
+        await this.loadApplicantData()
+      }
+      if (this.effectiveJobOpening) {
+        await this.loadJobOpeningData()
+      }
+    },
+
+    async loadJobApplicantsList() {
+      this.loadingJobApplicants = true
+      try {
+        const applicants = await call('frappe.client.get_list', {
+          doctype: 'Job Applicant',
+          fields: ['name', 'applicant_name', 'email_id', 'job_title', 'status'],
+          limit_page_length: 1000,
+          order_by: 'modified desc'
+        })
+        this.jobApplicantsList = applicants || []
+        console.log('Loaded job applicants list:', this.jobApplicantsList.length)
+      } catch (error) {
+        console.error('Error loading job applicants list:', error)
+        this.jobApplicantsList = []
+      } finally {
+        this.loadingJobApplicants = false
+      }
+    },
+
+    async loadJobOpeningsList() {
+      this.loadingJobOpenings = true
+      try {
+        const openings = await call('frappe.client.get_list', {
+          doctype: 'Job Opening',
+          fields: ['name', 'job_title', 'designation', 'status', 'company'],
+          limit_page_length: 1000,
+          order_by: 'modified desc'
+        })
+        this.jobOpeningsList = openings || []
+        console.log('Loaded job openings list:', this.jobOpeningsList.length)
+      } catch (error) {
+        console.error('Error loading job openings list:', error)
+        this.jobOpeningsList = []
+      } finally {
+        this.loadingJobOpenings = false
+      }
+    },
+
+    async onJobApplicantChange() {
+      if (this.formJobApplicant) {
+        // Update search text to show selected value
+        const applicant = this.jobApplicantsList.find(a => a.name === this.formJobApplicant)
+        if (applicant) {
+          this.applicantSearchText = applicant.applicant_name || applicant.name
+        }
+        
+        // Load applicant data to get job_title (which links to job opening)
+        await this.loadApplicantData()
+        
+        // Auto-fill job opening if applicant has one
+        if (this.applicantData && this.applicantData.job_title) {
+          this.formJobOpening = this.applicantData.job_title
+          // Update opening search text
+          const opening = this.jobOpeningsList.find(o => o.name === this.formJobOpening)
+          if (opening) {
+            this.openingSearchText = opening.job_title || opening.name
+          }
+          console.log('Auto-filled job opening from applicant:', this.formJobOpening)
+          // Also load the job opening data
+          if (this.formJobOpening) {
+            await this.loadJobOpeningData()
+          }
+        }
+      } else {
+        // Clear job opening if applicant is cleared
+        this.formJobOpening = ''
+        this.openingSearchText = ''
+        this.applicantData = null
+      }
+    },
+
+    async onJobOpeningChange() {
+      if (this.formJobOpening) {
+        // Update search text to show selected value
+        const opening = this.jobOpeningsList.find(o => o.name === this.formJobOpening)
+        if (opening) {
+          this.openingSearchText = opening.job_title || opening.name
+        }
+        
+        // Load job opening data
+        await this.loadJobOpeningData()
+        
+        // Optionally, validate if selected applicant matches this opening
+        if (this.formJobApplicant && this.applicantData) {
+          if (this.applicantData.job_title !== this.formJobOpening) {
+            console.warn('Warning: Selected Job Applicant is not associated with the selected Job Opening')
+          }
+        }
+      } else {
+        this.openingSearchText = ''
+        this.jobOpeningData = null
+      }
+    },
+  }
+}
+</script>
+
+<style scoped>
+/* Using Tailwind CSS - minimal custom styles only for animations */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+</style>

@@ -42,6 +42,29 @@ const routes = [
     name: 'Reportes',
     component: () => import('@/pages/Reportes.vue'),
   },
+  
+  {
+    path: '/ai-dashboard',
+    name: 'AIDashboard',
+    component: () => import('@/pages/AIDashboard.vue'),
+  },
+  {
+    path: '/cv-analysis/:jobApplicant?/:jobOpening?',
+    name: 'CVAnalysis',
+    component: () => import('@/pages/CVAnalysis.vue'),
+    props: route => ({
+      jobApplicant: route.params.jobApplicant,
+      jobOpening: route.params.jobOpening,
+    }),
+  },
+  {
+    path: '/recruitment-reports/:jobOpening?',
+    name: 'RecruitmentReports',
+    component: () => import('@/pages/RecruitmentReports.vue'),
+    props: route => ({
+      jobOpening: route.params.jobOpening,
+    }),
+  },
   {
     path: '/login',
     name: 'Login',

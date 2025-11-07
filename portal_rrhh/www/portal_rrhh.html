@@ -10,17 +10,18 @@
       sizes="196x196"
       href="/assets/frappe/images/frappe-framework-logo.svg"
     />
-    <script type="module" crossorigin src="/assets/portal_rrhh/frontend/assets/index.11cb079d.js"></script>
-    <link rel="modulepreload" href="/assets/portal_rrhh/frontend/assets/vendor.cde245ad.js">
+    <script type="module" crossorigin src="/assets/portal_rrhh/frontend/assets/index.6c14df47.js"></script>
+    <link rel="modulepreload" href="/assets/portal_rrhh/frontend/assets/vendor.e26080f1.js">
     <link rel="stylesheet" href="/assets/portal_rrhh/frontend/assets/vendor.1f7d581e.css">
-    <link rel="stylesheet" href="/assets/portal_rrhh/frontend/assets/index.22d83797.css">
+    <link rel="stylesheet" href="/assets/portal_rrhh/frontend/assets/index.0b045eec.css">
+    
   </head>
   <body class="overscroll-y-none no-scrollbar" style="margin: 0; padding: 0;">
     <div id="app" class="h-full"></div>
     <div id="modals"></div>
     <div id="popovers"></div>
-
     <script>
+      // Expose server boot variables to window
       {% for key in boot %}
         window["{{ key }}"] = {{ boot[key] | tojson }};
       {% endfor %}
@@ -35,7 +36,9 @@
           'vacantes': '/portal-rrhh/vacantes',
           'solicitudes': '/portal-rrhh/solicitudes',
           'evaluaciones': '/portal-rrhh/evaluaciones',
-          'reportes': '/portal-rrhh/reportes'
+          'reportes': '/portal-rrhh/reportes',
+          'ai-dashboard': '/portal-rrhh/ai-dashboard',
+          'cv-analysis': '/portal-rrhh/cv-analysis'
         }
       };
     </script>
