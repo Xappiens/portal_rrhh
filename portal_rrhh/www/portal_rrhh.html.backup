@@ -10,10 +10,10 @@
       sizes="196x196"
       href="/assets/frappe/images/frappe-framework-logo.svg"
     />
-    <script type="module" crossorigin src="/assets/portal_rrhh/frontend/assets/index.0a6865a5.js"></script>
-    <link rel="modulepreload" href="/assets/portal_rrhh/frontend/assets/vendor.e26080f1.js">
+    <script type="module" crossorigin src="/assets/portal_rrhh/frontend/assets/index.17976c7b.js"></script>
+    <link rel="modulepreload" href="/assets/portal_rrhh/frontend/assets/vendor.47156cf5.js">
     <link rel="stylesheet" href="/assets/portal_rrhh/frontend/assets/vendor.1f7d581e.css">
-    <link rel="stylesheet" href="/assets/portal_rrhh/frontend/assets/index.75147c9d.css">
+    <link rel="stylesheet" href="/assets/portal_rrhh/frontend/assets/index.945a0120.css">
     
   </head>
   <body class="overscroll-y-none no-scrollbar" style="margin: 0; padding: 0;">

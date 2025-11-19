@@ -1,5 +1,5 @@
 <template>
-  <div class="flex-1 p-6 bg-gray-50 overflow-y-auto">
+  <div class="flex-1 p-6 bg-gray-50 overflow-y-auto h-full">
     <!-- Header -->
     <div class="mb-8">
       <h2 class="text-2xl font-semibold text-gray-900 mb-2">📄 AI CV Analysis</h2>
@@ -57,7 +57,7 @@
             <!-- Dropdown with filtered results - appears below the input -->
             <div
               v-if="showApplicantDropdown"
-              class="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+              class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
             >
               <div v-if="filteredApplicants.length > 0" class="p-2">
                 <div class="text-xs text-gray-500 px-2 py-1 mb-1 font-semibold">Select from list ({{ filteredApplicants.length }} results):</div>
@@ -132,7 +132,7 @@
             <!-- Dropdown with filtered results - appears below the input -->
             <div
               v-if="showOpeningDropdown"
-              class="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+              class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
             >
               <div v-if="filteredOpenings.length > 0" class="p-2">
                 <div class="text-xs text-gray-500 px-2 py-1 mb-1 font-semibold">Select from list ({{ filteredOpenings.length }} results):</div>
@@ -236,6 +236,57 @@
       <button @click="clearError" class="text-red-600 hover:text-red-800">✕</button>
     </div>
 
+    <!-- Recent CV Analysis Section -->
+    <div v-if="!isAnalyzing && !analysis && !effectiveJobApplicant && !effectiveJobOpening" class="bg-white rounded-lg shadow p-6 mb-6">
+      <h3 class="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">📊 Recent CV Analysis</h3>
+      <div v-if="recentAnalyses.length > 0" class="max-h-96 overflow-y-auto pr-2 space-y-3">
+        <div
+          v-for="recent in recentAnalyses"
+          :key="recent.name"
+          @click="loadAnalysis(recent.name)"
+          class="p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-colors">
+          <div class="flex justify-between items-start mb-2">
+            <div class="flex-1">
+              <div class="font-medium text-gray-900 mb-1">
+                {{ recent.candidate_name || recent.job_applicant || 'Unknown Candidate' }}
+              </div>
+              <div class="text-sm text-gray-600 mb-2">
+                {{ recent.job_title || recent.job_opening || 'Unknown Job' }}
+              </div>
+            </div>
+            <span :class="[
+              'px-2 py-1 rounded-full text-xs font-medium',
+              recent.status === 'Completed' ? 'bg-green-100 text-green-800' :
+              recent.status === 'Analyzing' ? 'bg-yellow-100 text-yellow-800' :
+              recent.status === 'Failed' ? 'bg-red-100 text-red-800' :
+              'bg-gray-100 text-gray-800'
+            ]">
+              {{ recent.status }}
+            </span>
+          </div>
+          <div v-if="recent.status === 'Completed'" class="flex gap-4 text-sm">
+            <div class="text-gray-600">
+              <span class="font-medium">Skills:</span> {{ recent.skills_match_percentage || 0 }}%
+            </div>
+            <div class="text-gray-600">
+              <span class="font-medium">Experience:</span> {{ recent.experience_relevance || 0 }}/5
+            </div>
+            <div class="text-gray-600">
+              <span class="font-medium">Confidence:</span> {{ recent.ai_confidence_score || 0 }}%
+            </div>
+          </div>
+          <div v-if="recent.analysis_timestamp" class="text-xs text-gray-500 mt-2">
+            {{ formatDate(recent.analysis_timestamp) }}
+          </div>
+        </div>
+      </div>
+      <div v-else class="text-center py-8 text-gray-500">
+        <div class="text-4xl mb-3">📭</div>
+        <p>No recent CV analysis found.</p>
+        <p class="text-sm mt-2">Start analyzing CVs to see them here.</p>
+      </div>
+    </div>
+
     <!-- Loading State -->
     <div v-if="isAnalyzing && !analysis" class="bg-white rounded-lg shadow p-8 text-center mb-6">
       <div class="relative inline-block mb-6">
@@ -308,9 +359,9 @@
               <h4 class="text-sm font-medium text-gray-700">Experience</h4>
             </div>
             <div class="text-2xl mb-2">
-              <span v-for="i in 5" :key="i" :class="i <= (analysis.experience_relevance || 0) ? 'text-yellow-500' : 'text-gray-300'">★</span>
+              <span v-for="i in 5" :key="i" :class="i <= getExperienceRating() ? 'text-yellow-500' : 'text-gray-300'">★</span>
             </div>
-            <div class="text-sm font-semibold text-gray-700">{{ analysis.experience_relevance || 0 }}/5</div>
+            <div class="text-sm font-semibold text-gray-700">{{ getExperienceRating() }}/5</div>
           </div>
 
           <div class="bg-gray-50 rounded-lg p-4">
@@ -319,9 +370,9 @@
               <h4 class="text-sm font-medium text-gray-700">Education</h4>
             </div>
             <div class="text-2xl mb-2">
-              <span v-for="i in 5" :key="i" :class="i <= (analysis.education_match || 0) ? 'text-yellow-500' : 'text-gray-300'">★</span>
+              <span v-for="i in 5" :key="i" :class="i <= getEducationRating() ? 'text-yellow-500' : 'text-gray-300'">★</span>
             </div>
-            <div class="text-sm font-semibold text-gray-700">{{ analysis.education_match || 0 }}/5</div>
+            <div class="text-sm font-semibold text-gray-700">{{ getEducationRating() }}/5</div>
           </div>
 
           <div class="bg-gray-50 rounded-lg p-4">
@@ -398,7 +449,8 @@ export default {
       jobApplicantsList: [],
       jobOpeningsList: [],
       loadingJobApplicants: false,
-      loadingJobOpenings: false
+      loadingJobOpenings: false,
+      recentAnalyses: []
     }
   },
   computed: {
@@ -461,6 +513,7 @@ export default {
     // Load job applicants and job openings lists
     this.loadJobApplicantsList()
     this.loadJobOpeningsList()
+    this.loadRecentAnalyses()
     
     if (this.$route.query.analysisId) {
       this.loadAnalysisById(this.$route.query.analysisId)
@@ -775,7 +828,6 @@ export default {
           this.isAnalyzing = false
         }
       } catch (error) {
-        console.error('Error analyzing CV:', error)
         this.error = error.message || 'Failed to start CV analysis. Please check your connection and try again.'
         this.isAnalyzing = false
       }
@@ -784,26 +836,21 @@ export default {
     async pollAnalysisStatus(analysisId) {
       const maxAttempts = 30
       this.pollingAttempts = 0
-      console.log('Starting polling for analysis:', analysisId)
   
       const poll = async () => {
         if (!this.isAnalyzing) {
-          console.log('Polling stopped - isAnalyzing is false')
           return
         }
 
         try {
-          console.log(`Polling attempt ${this.pollingAttempts + 1}/${maxAttempts} for analysis ${analysisId}`)
           const analysis = await call('ai_hr_recruitment.ai_hr_recruitment.api.cv_analysis.get_cv_analysis', {
             analysis_id: analysisId
           })
   
           this.pollingAttempts++
-          console.log('Analysis status:', analysis ? analysis.status : 'null', 'Full data:', analysis)
   
           if (analysis && analysis.status) {
             if (analysis.status === 'Completed') {
-              console.log('✅ Analysis completed! Full data:', analysis)
               this.analysis = analysis
               
               if (analysis.job_applicant) {
@@ -828,13 +875,11 @@ export default {
               this.pollingAttempts = 0
               return
             } else if (analysis.status === 'Failed') {
-              console.log('❌ Analysis failed')
               this.error = this.getErrorMessage(analysis)
               this.isAnalyzing = false
               this.pollingInterval = null
               return
             } else if (analysis.status === 'Analyzing' || analysis.status === 'Pending') {
-              console.log(`⏳ Still analyzing... (attempt ${this.pollingAttempts}/${maxAttempts})`)
               if (this.pollingAttempts < maxAttempts) {
                 this.pollingInterval = setTimeout(poll, 2000)
               } else {
@@ -845,7 +890,6 @@ export default {
               }
               return
             } else {
-              console.log('⚠️ Unknown status:', analysis.status)
               if (this.pollingAttempts < maxAttempts) {
                 this.pollingInterval = setTimeout(poll, 2000)
               } else {
@@ -857,7 +901,6 @@ export default {
               return
             }
           } else {
-            console.log('⚠️ No analysis data or status')
             if (this.pollingAttempts < maxAttempts) {
               this.pollingInterval = setTimeout(poll, 2000)
             } else {
@@ -868,9 +911,7 @@ export default {
             return
           }
         } catch (error) {
-          console.error('❌ Error polling:', error)
           if (this.pollingAttempts < maxAttempts && this.isAnalyzing) {
-            console.log(`Retrying after error (attempt ${this.pollingAttempts}/${maxAttempts})...`)
             this.pollingInterval = setTimeout(poll, 3000)
           } else {
             this.error = 'Error checking analysis status: ' + (error.message || 'Unknown error')
@@ -886,12 +927,9 @@ export default {
     async loadAnalysis(analysisId) {
       try {
         this.error = null
-        console.log('Loading analysis:', analysisId)
         const analysis = await call('ai_hr_recruitment.ai_hr_recruitment.api.cv_analysis.get_cv_analysis', {
           analysis_id: analysisId
         })
-        
-        console.log('Loaded analysis:', analysis)
         
         if (analysis) {
           this.analysis = analysis
@@ -913,11 +951,9 @@ export default {
           }
           
           if (analysis.status === 'Analyzing' || analysis.status === 'Pending') {
-            console.log('Analysis still processing, starting polling...')
             this.isAnalyzing = true
             this.pollAnalysisStatus(analysisId)
           } else if (analysis.status === 'Completed') {
-            console.log('✅ Analysis already completed, showing results')
             this.isAnalyzing = false
           } else {
             this.isAnalyzing = false
@@ -929,7 +965,6 @@ export default {
           this.error = 'Analysis not found'
         }
       } catch (error) {
-        console.error('Error loading analysis:', error)
         this.error = 'Failed to load analysis: ' + (error.message || 'Unknown error')
       }
     },
@@ -996,9 +1031,7 @@ export default {
           name: this.effectiveJobApplicant
         })
         this.applicantData = applicant
-        console.log('Loaded applicant data:', applicant)
       } catch (error) {
-        console.error('Error loading applicant data:', error)
         this.applicantData = null
       } finally {
         this.loadingApplicant = false
@@ -1015,9 +1048,7 @@ export default {
           name: this.effectiveJobOpening
         })
         this.jobOpeningData = jobOpening
-        console.log('Loaded job opening data:', jobOpening)
       } catch (error) {
-        console.error('Error loading job opening data:', error)
         this.jobOpeningData = null
       } finally {
         this.loadingJobOpening = false
@@ -1043,9 +1074,7 @@ export default {
           order_by: 'modified desc'
         })
         this.jobApplicantsList = applicants || []
-        console.log('Loaded job applicants list:', this.jobApplicantsList.length)
       } catch (error) {
-        console.error('Error loading job applicants list:', error)
         this.jobApplicantsList = []
       } finally {
         this.loadingJobApplicants = false
@@ -1062,9 +1091,7 @@ export default {
           order_by: 'modified desc'
         })
         this.jobOpeningsList = openings || []
-        console.log('Loaded job openings list:', this.jobOpeningsList.length)
       } catch (error) {
-        console.error('Error loading job openings list:', error)
         this.jobOpeningsList = []
       } finally {
         this.loadingJobOpenings = false
@@ -1090,7 +1117,6 @@ export default {
           if (opening) {
             this.openingSearchText = opening.job_title || opening.name
           }
-          console.log('Auto-filled job opening from applicant:', this.formJobOpening)
           // Also load the job opening data
           if (this.formJobOpening) {
             await this.loadJobOpeningData()
@@ -1126,6 +1152,104 @@ export default {
         this.jobOpeningData = null
       }
     },
+
+    async loadRecentAnalyses() {
+      try {
+        const analyses = await call('frappe.client.get_list', {
+          doctype: 'AI CV Analysis',
+          fields: [
+            'name',
+            'job_applicant',
+            'job_opening',
+            'status',
+            'skills_match_percentage',
+            'experience_relevance',
+            'education_match',
+            'ai_confidence_score',
+            'analysis_timestamp'
+          ],
+          limit_page_length: 10,
+          order_by: 'analysis_timestamp desc'
+        })
+
+        // Enrich with applicant and opening names
+        if (analyses && analyses.length > 0) {
+          const applicantIds = [...new Set(analyses.map(a => a.job_applicant).filter(Boolean))]
+          const openingIds = [...new Set(analyses.map(a => a.job_opening).filter(Boolean))]
+
+          let applicantMap = {}
+          let openingMap = {}
+
+          if (applicantIds.length > 0) {
+            const applicants = await call('frappe.client.get_list', {
+              doctype: 'Job Applicant',
+              fields: ['name', 'applicant_name'],
+              filters: [['name', 'in', applicantIds]]
+            })
+            applicantMap = Object.fromEntries(applicants.map(a => [a.name, a.applicant_name]))
+          }
+
+          if (openingIds.length > 0) {
+            const openings = await call('frappe.client.get_list', {
+              doctype: 'Job Opening',
+              fields: ['name', 'job_title'],
+              filters: [['name', 'in', openingIds]]
+            })
+            openingMap = Object.fromEntries(openings.map(o => [o.name, o.job_title]))
+          }
+
+          this.recentAnalyses = analyses.map(analysis => ({
+            ...analysis,
+            candidate_name: applicantMap[analysis.job_applicant] || analysis.job_applicant,
+            job_title: openingMap[analysis.job_opening] || analysis.job_opening
+          }))
+        } else {
+          this.recentAnalyses = []
+        }
+      } catch (error) {
+        this.recentAnalyses = []
+      }
+    },
+    getExperienceRating() {
+      if (!this.analysis || this.analysis.experience_relevance === undefined || this.analysis.experience_relevance === null) {
+        return 0
+      }
+      // Parse the value to ensure it's a number
+      const value = parseFloat(this.analysis.experience_relevance)
+      // Handle both fractions (0.0-1.0) and integers (1-5)
+      // API should return integers (1-5), but handle fractions just in case
+      if (value <= 1.0 && value >= 0) {
+        // It's a fraction, convert to integer (1-5)
+        // 0.2 = 1 star, 0.4 = 2 stars, 0.6 = 3 stars, 0.8 = 4 stars, 1.0 = 5 stars
+        return Math.max(1, Math.min(5, Math.round(value * 5)))
+      } else if (value > 1.0 && value <= 5.0) {
+        // It's already an integer (1-5), just ensure it's in range
+        return Math.max(1, Math.min(5, Math.round(value)))
+      } else {
+        // Invalid value, return 0
+        return 0
+      }
+    },
+    getEducationRating() {
+      if (!this.analysis || this.analysis.education_match === undefined || this.analysis.education_match === null) {
+        return 0
+      }
+      // Parse the value to ensure it's a number
+      const value = parseFloat(this.analysis.education_match)
+      // Handle both fractions (0.0-1.0) and integers (1-5)
+      // API should return integers (1-5), but handle fractions just in case
+      if (value <= 1.0 && value >= 0) {
+        // It's a fraction, convert to integer (1-5)
+        // 0.2 = 1 star, 0.4 = 2 stars, 0.6 = 3 stars, 0.8 = 4 stars, 1.0 = 5 stars
+        return Math.max(1, Math.min(5, Math.round(value * 5)))
+      } else if (value > 1.0 && value <= 5.0) {
+        // It's already an integer (1-5), just ensure it's in range
+        return Math.max(1, Math.min(5, Math.round(value)))
+      } else {
+        // Invalid value, return 0
+        return 0
+      }
+    },
   }
 }
 </script>
@@ -1139,5 +1263,11 @@ export default {
 
 .animate-spin {
   animation: spin 1s linear infinite;
+}
+
+/* Ensure smooth scrolling */
+.overflow-y-auto {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 </style>
