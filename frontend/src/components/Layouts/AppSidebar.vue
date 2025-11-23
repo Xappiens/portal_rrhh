@@ -110,6 +110,9 @@ import EvaluacionesIcon from '@/components/Icons/EvaluacionesIcon.vue'
 import ReportesIcon from '@/components/Icons/ReportesIcon.vue'
 import DepartamentosIcon from '@/components/Icons/DepartamentosIcon.vue'
 import ConfiguracionIcon from '@/components/Icons/ConfiguracionIcon.vue'
+import AIDashboardIcon from '@/components/Icons/AIDashboardIcon.vue'
+import CVAnalysisIcon from '@/components/Icons/CVAnalysisIcon.vue'
+import RecruitmentReportIcon from '@/components/Icons/RecruitmentReportIcon.vue'
 import { FeatherIcon, Badge } from 'frappe-ui'
 import { useStorage } from '@vueuse/core'
 import { computed } from 'vue'
@@ -154,17 +157,17 @@ const links = [
   },
   {
   label: 'AIDashboard',
-  icon: ReportesIcon,
+  icon: AIDashboardIcon,
   to: 'AIDashboard',
   },
   {
   label: 'CV Analysis',
-  icon: 'file-text',
+  icon: CVAnalysisIcon,
   to: 'CVAnalysis',
   },
   {
     label: 'Recruitment Reports',
-    icon: ReportesIcon,
+    icon: RecruitmentReportIcon,
     to: 'RecruitmentReports',
   }
 ]
