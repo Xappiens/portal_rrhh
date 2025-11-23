@@ -46,7 +46,8 @@ def get_job_offers_by_employee(employee_name):
                 JobOffer.workflow_state,
                 JobOffer.curso,
                 JobOffer.expediente,
-                JobOffer.centro_formacion
+                JobOffer.centro_formacion,
+                JobOffer.custom_provincia
             )
             .where(JobOffer.custom_dninie == employee_dni)
             .orderby(JobOffer.creation, order=frappe.qb.desc)

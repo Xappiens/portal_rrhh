@@ -35,6 +35,114 @@
             </Input>
           </div>
 
+          <!-- Búsqueda por Provincia -->
+          <div class="flex-1 relative">
+            <div class="relative">
+              <Input
+                v-model="provinciaSearchText"
+                type="text"
+                placeholder="Buscar por provincia..."
+                variant="outline"
+                size="sm"
+                @input="onProvinciaSearchInput"
+                @focus="onProvinciaFocus"
+                @blur="handleProvinciaBlur"
+                @keydown.enter.prevent="handleProvinciaEnter"
+                @keydown.escape="showProvinciaDropdown = false"
+                @keydown.down.prevent="navigateProvinciaDropdown(1)"
+                @keydown.up.prevent="navigateProvinciaDropdown(-1)"
+              >
+                <template #prefix>
+                  <FeatherIcon name="map-pin" class="h-4 text-gray-400" />
+                </template>
+              </Input>
+              <button
+                v-if="searchFilters.provincia"
+                @click="clearProvincia"
+                class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                type="button"
+              >
+                <FeatherIcon name="x" class="h-4" />
+              </button>
+            </div>
+            <!-- Dropdown con opciones filtradas -->
+            <div
+              v-if="showProvinciaDropdown && filteredProvincias.length > 0"
+              class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+            >
+              <div class="p-2">
+                <div class="text-xs text-gray-500 px-2 py-1 mb-1 font-semibold">
+                  Seleccionar provincia ({{ filteredProvincias.length }} resultados):
+                </div>
+                <div
+                  v-for="(provincia, index) in filteredProvincias"
+                  :key="provincia"
+                  @mousedown.prevent="selectProvincia(provincia)"
+                  :class="[
+                    'px-4 py-2 cursor-pointer border-b border-gray-100 last:border-b-0',
+                    index === highlightedProvinciaIndex ? 'bg-blue-100' : 'hover:bg-blue-50'
+                  ]"
+                >
+                  <div class="font-medium text-gray-900">{{ provincia }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Búsqueda por Empresa -->
+          <div class="flex-1 relative">
+            <div class="relative">
+              <Input
+                v-model="companySearchText"
+                type="text"
+                placeholder="Buscar por empresa..."
+                variant="outline"
+                size="sm"
+                @input="onCompanySearchInput"
+                @focus="onCompanyFocus"
+                @blur="handleCompanyBlur"
+                @keydown.enter.prevent="handleCompanyEnter"
+                @keydown.escape="showCompanyDropdown = false"
+                @keydown.down.prevent="navigateCompanyDropdown(1)"
+                @keydown.up.prevent="navigateCompanyDropdown(-1)"
+              >
+                <template #prefix>
+                  <FeatherIcon name="building" class="h-4 text-gray-400" />
+                </template>
+              </Input>
+              <button
+                v-if="searchFilters.company"
+                @click="clearCompany"
+                class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                type="button"
+              >
+                <FeatherIcon name="x" class="h-4" />
+              </button>
+            </div>
+            <!-- Dropdown con opciones filtradas -->
+            <div
+              v-if="showCompanyDropdown && filteredCompanies.length > 0"
+              class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+            >
+              <div class="p-2">
+                <div class="text-xs text-gray-500 px-2 py-1 mb-1 font-semibold">
+                  Seleccionar empresa ({{ filteredCompanies.length }} resultados):
+                </div>
+                <div
+                  v-for="(company, index) in filteredCompanies"
+                  :key="company"
+                  @mousedown.prevent="selectCompany(company)"
+                  :class="[
+                    'px-4 py-2 cursor-pointer border-b border-gray-100 last:border-b-0',
+                    index === highlightedCompanyIndex ? 'bg-blue-100' : 'hover:bg-blue-50'
+                  ]"
+                >
+                  <div class="font-medium text-gray-900">{{ company }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Botón Limpiar Filtros -->
           <div class="flex-shrink-0">
             <Button
@@ -231,13 +339,14 @@
             <p class="text-sm">Cargando Hojas de Contratación...</p>
             <p class="text-xs text-gray-400 mt-2">Por favor espera...</p>
           </div>
-          <div v-else-if="!jobOffersData || jobOffersData.length === 0" class="p-4 text-center text-gray-500">
+          <div v-else-if="!filteredJobOffers || filteredJobOffers.length === 0" class="p-4 text-center text-gray-500">
             <FeatherIcon name="file-text" class="h-12 w-12 mx-auto mb-4 text-gray-300" />
             <p>No hay Hojas de Contratación para este empleado</p>
+            <p v-if="hasJobOfferFilters" class="text-xs text-gray-400 mt-2">Intenta ajustar los filtros de provincia o empresa</p>
           </div>
           <div v-else class="divide-y divide-gray-200">
             <div
-              v-for="jobOffer in jobOffersData"
+              v-for="jobOffer in filteredJobOffers"
               :key="jobOffer.name"
               class="p-4 border-l-4 border-transparent"
             >
@@ -449,7 +558,7 @@
 
 <script setup>
 import { FeatherIcon, Button, Badge, Card, createResource } from 'frappe-ui'
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 
 
 // Employee management
@@ -458,8 +567,27 @@ const selectedEmployee = ref(null)
 // Search filters
 const searchFilters = ref({
   employeeName: '',
-  dninie: ''
+  dninie: '',
+  provincia: '',
+  company: ''
 })
+
+// Autocomplete states for provincia
+const provinciaSearchText = ref('')
+const provinciasList = ref([])
+const showProvinciaDropdown = ref(false)
+const highlightedProvinciaIndex = ref(-1)
+const isLoadingProvincias = ref(false)
+
+// Autocomplete states for company
+const companySearchText = ref('')
+const companiesList = ref([])
+const showCompanyDropdown = ref(false)
+const highlightedCompanyIndex = ref(-1)
+const isLoadingCompanies = ref(false)
+
+// Timeout para debounce de recarga
+let reloadTimeout = null
 
 // Empleados filtrados
 const filteredEmployees = ref([])
@@ -476,16 +604,33 @@ const expandedJobOffers = ref(new Set())
 const isEmployeeListCollapsed = ref(false)
 
 // Resources using CRM pattern
-
 const employees = createResource({
   url: 'portal_rrhh.api.employee.get_employees',
   cache: false,
   auto: true,
-  params: () => ({
-    filters: JSON.stringify({
+  makeParams() {
+    const filters = {
       status: 'Active'
-    })
-  })
+    }
+    
+    // Add provincia filter if provided
+    if (searchFilters.value.provincia.trim()) {
+      filters.provincia = searchFilters.value.provincia.trim()
+    }
+    
+    // Add company filter if provided
+    if (searchFilters.value.company.trim()) {
+      filters.company = searchFilters.value.company.trim()
+    }
+    
+    const params = {
+      filters: JSON.stringify(filters)
+    }
+    
+    console.log('📤 makeParams ejecutado:', filters)
+    
+    return params
+  }
 })
 
 // Ya no necesitamos el resource de jobOffers, usamos fetch directo
@@ -493,6 +638,256 @@ const employees = createResource({
 
 // Loading states
 const loadingEmployees = computed(() => employees.loading)
+
+// Computed properties for filtered options
+const filteredProvincias = computed(() => {
+  if (!provinciaSearchText.value.trim()) {
+    return provinciasList.value
+  }
+  const search = provinciaSearchText.value.toLowerCase()
+  return provinciasList.value.filter(p => 
+    p && p.toLowerCase().includes(search)
+  )
+})
+
+const filteredCompanies = computed(() => {
+  if (!companySearchText.value.trim()) {
+    return companiesList.value
+  }
+  const search = companySearchText.value.toLowerCase()
+  return companiesList.value.filter(c => 
+    c && c.toLowerCase().includes(search)
+  )
+})
+
+// Load provincias and companies
+const loadProvincias = async () => {
+  if (provinciasList.value.length > 0) return // Already loaded
+  
+  isLoadingProvincias.value = true
+  try {
+    const { call } = await import('frappe-ui')
+    const data = await call('portal_rrhh.api.filters.get_unique_provinces')
+    provinciasList.value = data || []
+  } catch (error) {
+    console.error('Error loading provincias:', error)
+    provinciasList.value = []
+  } finally {
+    isLoadingProvincias.value = false
+  }
+}
+
+const loadCompanies = async () => {
+  if (companiesList.value.length > 0) return // Already loaded
+  
+  isLoadingCompanies.value = true
+  try {
+    const { call } = await import('frappe-ui')
+    const data = await call('portal_rrhh.api.filters.get_unique_companies')
+    companiesList.value = data || []
+  } catch (error) {
+    console.error('Error loading companies:', error)
+    companiesList.value = []
+  } finally {
+    isLoadingCompanies.value = false
+  }
+}
+
+// Provincia autocomplete handlers
+const onProvinciaSearchInput = () => {
+  const trimmed = provinciaSearchText.value.trim()
+  searchFilters.value.provincia = trimmed
+  showProvinciaDropdown.value = true
+  highlightedProvinciaIndex.value = -1
+  // Recargar empleados con debounce cuando se escribe manualmente
+  if (reloadTimeout) {
+    clearTimeout(reloadTimeout)
+  }
+  reloadTimeout = setTimeout(() => {
+    if (employees.reload) {
+      employees.reload()
+    }
+  }, 500)
+}
+
+const onProvinciaFocus = () => {
+  if (provinciasList.value.length === 0) {
+    loadProvincias()
+  }
+  if (filteredProvincias.value.length > 0) {
+    showProvinciaDropdown.value = true
+  }
+}
+
+const handleProvinciaBlur = () => {
+  // Delay to allow click events
+  setTimeout(() => {
+    showProvinciaDropdown.value = false
+    highlightedProvinciaIndex.value = -1
+  }, 200)
+}
+
+const selectProvincia = async (provincia) => {
+  console.log('🔍 Seleccionando provincia:', provincia)
+  console.log('🔍 Filtros ANTES:', {
+    provincia: searchFilters.value.provincia,
+    company: searchFilters.value.company
+  })
+  
+  provinciaSearchText.value = provincia
+  searchFilters.value.provincia = provincia
+  
+  console.log('🔍 Filtros DESPUÉS:', {
+    provincia: searchFilters.value.provincia,
+    company: searchFilters.value.company
+  })
+  
+  showProvinciaDropdown.value = false
+  highlightedProvinciaIndex.value = -1
+  
+  // Esperar un momento para que Vue procese el cambio reactivo
+  await new Promise(resolve => setTimeout(resolve, 100))
+  
+  // Forzar recarga del resource con nuevos parámetros
+  console.log('🔄 Forzando recarga del resource...')
+  if (employees) {
+    if (typeof employees.reload === 'function') {
+      console.log('🔄 Llamando employees.reload()')
+      employees.reload()
+    } else if (typeof employees.fetch === 'function') {
+      console.log('🔄 Llamando employees.fetch()')
+      employees.fetch()
+    }
+  }
+}
+
+const clearProvincia = () => {
+  provinciaSearchText.value = ''
+  searchFilters.value.provincia = ''
+  showProvinciaDropdown.value = false
+  // Forzar recarga de empleados
+  if (employees.reload) {
+    employees.reload()
+  }
+}
+
+const navigateProvinciaDropdown = (direction) => {
+  if (!showProvinciaDropdown.value || filteredProvincias.value.length === 0) return
+  
+  highlightedProvinciaIndex.value += direction
+  
+  if (highlightedProvinciaIndex.value < 0) {
+    highlightedProvinciaIndex.value = filteredProvincias.value.length - 1
+  } else if (highlightedProvinciaIndex.value >= filteredProvincias.value.length) {
+    highlightedProvinciaIndex.value = 0
+  }
+}
+
+const handleProvinciaEnter = () => {
+  if (highlightedProvinciaIndex.value >= 0 && highlightedProvinciaIndex.value < filteredProvincias.value.length) {
+    selectProvincia(filteredProvincias.value[highlightedProvinciaIndex.value])
+  } else if (filteredProvincias.value.length === 1) {
+    selectProvincia(filteredProvincias.value[0])
+  }
+}
+
+// Company autocomplete handlers
+const onCompanySearchInput = () => {
+  const trimmed = companySearchText.value.trim()
+  searchFilters.value.company = trimmed
+  showCompanyDropdown.value = true
+  highlightedCompanyIndex.value = -1
+  // Recargar empleados con debounce cuando se escribe manualmente
+  if (reloadTimeout) {
+    clearTimeout(reloadTimeout)
+  }
+  reloadTimeout = setTimeout(() => {
+    if (employees.reload) {
+      employees.reload()
+    }
+  }, 500)
+}
+
+const onCompanyFocus = () => {
+  if (companiesList.value.length === 0) {
+    loadCompanies()
+  }
+  if (filteredCompanies.value.length > 0) {
+    showCompanyDropdown.value = true
+  }
+}
+
+const handleCompanyBlur = () => {
+  // Delay to allow click events
+  setTimeout(() => {
+    showCompanyDropdown.value = false
+    highlightedCompanyIndex.value = -1
+  }, 200)
+}
+
+const selectCompany = async (company) => {
+  console.log('🔍 Seleccionando empresa:', company)
+  console.log('🔍 Filtros ANTES:', {
+    provincia: searchFilters.value.provincia,
+    company: searchFilters.value.company
+  })
+  
+  companySearchText.value = company
+  searchFilters.value.company = company
+  
+  console.log('🔍 Filtros DESPUÉS:', {
+    provincia: searchFilters.value.provincia,
+    company: searchFilters.value.company
+  })
+  
+  showCompanyDropdown.value = false
+  highlightedCompanyIndex.value = -1
+  
+  // Esperar un momento para que Vue procese el cambio reactivo
+  await new Promise(resolve => setTimeout(resolve, 100))
+  
+  // Forzar recarga del resource con nuevos parámetros
+  console.log('🔄 Forzando recarga del resource...')
+  if (employees) {
+    if (typeof employees.reload === 'function') {
+      console.log('🔄 Llamando employees.reload()')
+      employees.reload()
+    } else if (typeof employees.fetch === 'function') {
+      console.log('🔄 Llamando employees.fetch()')
+      employees.fetch()
+    }
+  }
+}
+
+const clearCompany = () => {
+  companySearchText.value = ''
+  searchFilters.value.company = ''
+  showCompanyDropdown.value = false
+  // Forzar recarga de empleados
+  if (employees.reload) {
+    employees.reload()
+  }
+}
+
+const navigateCompanyDropdown = (direction) => {
+  if (!showCompanyDropdown.value || filteredCompanies.value.length === 0) return
+  
+  highlightedCompanyIndex.value += direction
+  
+  if (highlightedCompanyIndex.value < 0) {
+    highlightedCompanyIndex.value = filteredCompanies.value.length - 1
+  } else if (highlightedCompanyIndex.value >= filteredCompanies.value.length) {
+    highlightedCompanyIndex.value = 0
+  }
+}
+
+const handleCompanyEnter = () => {
+  if (highlightedCompanyIndex.value >= 0 && highlightedCompanyIndex.value < filteredCompanies.value.length) {
+    selectCompany(filteredCompanies.value[highlightedCompanyIndex.value])
+  } else if (filteredCompanies.value.length === 1) {
+    selectCompany(filteredCompanies.value[0])
+  }
+}
 
 // Función para cargar job offers usando Frappe UI
 const loadJobOffers = async (employeeName) => {
@@ -688,14 +1083,31 @@ const getEmployeeStatusTheme = (status) => {
 
 // Computed para verificar si hay filtros activos
 const hasActiveFilters = computed(() => {
-  return searchFilters.value.employeeName.trim() !== '' || searchFilters.value.dninie.trim() !== ''
+  return searchFilters.value.employeeName.trim() !== '' || 
+         searchFilters.value.dninie.trim() !== '' ||
+         searchFilters.value.provincia.trim() !== '' ||
+         searchFilters.value.company.trim() !== ''
+})
+
+// Computed para verificar si hay filtros activos solo para Job Offers
+const hasJobOfferFilters = computed(() => {
+  return searchFilters.value.provincia.trim() !== '' || 
+         searchFilters.value.company.trim() !== ''
 })
 
 // Función para limpiar filtros
 const clearFilters = () => {
   searchFilters.value.employeeName = ''
   searchFilters.value.dninie = ''
+  clearProvincia()
+  clearCompany()
 }
+
+// Load data on mount
+onMounted(() => {
+  loadProvincias()
+  loadCompanies()
+})
 
 // Computed property para empleados filtrados - más eficiente que watchers
 const filteredEmployeesComputed = computed(() => {
@@ -715,10 +1127,113 @@ const filteredEmployeesComputed = computed(() => {
   })
 })
 
+// Computed property para Job Offers filtrados
+const filteredJobOffers = computed(() => {
+  if (!jobOffersData.value || jobOffersData.value.length === 0) {
+    return []
+  }
+
+  const provinciaFilter = searchFilters.value.provincia.trim().toLowerCase()
+  const companyFilter = searchFilters.value.company.trim().toLowerCase()
+
+  // Si no hay filtros de Job Offer, devolver todos
+  if (!provinciaFilter && !companyFilter) {
+    return jobOffersData.value
+  }
+
+  return jobOffersData.value.filter(jobOffer => {
+    // Filtro por provincia
+    if (provinciaFilter) {
+      const provincia = jobOffer.custom_provincia || ''
+      if (!provincia.toLowerCase().includes(provinciaFilter)) {
+        return false
+      }
+    }
+
+    // Filtro por empresa
+    if (companyFilter) {
+      const company = jobOffer.company || ''
+      if (!company.toLowerCase().includes(companyFilter)) {
+        return false
+      }
+    }
+
+    return true
+  })
+})
+
 // Actualizar filteredEmployees cuando cambia el computed
 watch(filteredEmployeesComputed, (newValue) => {
   filteredEmployees.value = newValue
+  console.log('📊 Empleados filtrados actualizados:', newValue.length)
 }, { immediate: true })
+
+// Watcher para debug: ver cuando cambian los datos del resource
+watch(() => employees.data, (newData) => {
+  console.log('📥 Datos de empleados actualizados:', newData?.length || 0)
+  console.log('📥 Filtros activos:', {
+    provincia: searchFilters.value.provincia,
+    company: searchFilters.value.company
+  })
+}, { immediate: true })
+
+// Watcher para sincronizar los textos de búsqueda con los filtros
+watch(() => searchFilters.value.provincia, (newValue) => {
+  if (provinciaSearchText.value !== newValue) {
+    provinciaSearchText.value = newValue || ''
+  }
+})
+
+watch(() => searchFilters.value.company, (newValue) => {
+  if (companySearchText.value !== newValue) {
+    companySearchText.value = newValue || ''
+  }
+})
+
+// Watcher para recargar empleados cuando cambian los filtros de provincia o empresa
+watch([() => searchFilters.value.provincia, () => searchFilters.value.company], ([newProvincia, newCompany], [oldProvincia, oldCompany]) => {
+  // Solo recargar si realmente cambió el valor
+  if (newProvincia !== oldProvincia || newCompany !== oldCompany) {
+    console.log('🔄 Watcher detectó cambio en filtros:', {
+      provincia: { old: oldProvincia, new: newProvincia },
+      company: { old: oldCompany, new: newCompany }
+    })
+    
+    // Limpiar timeout anterior
+    if (reloadTimeout) {
+      clearTimeout(reloadTimeout)
+    }
+    
+    // Recargar con un pequeño delay para evitar recargas múltiples
+    reloadTimeout = setTimeout(() => {
+      console.log('🔄 Recargando empleados desde watcher...')
+      console.log('🔄 Estado actual de filtros:', {
+        provincia: searchFilters.value.provincia,
+        company: searchFilters.value.company
+      })
+      
+      // Forzar recarga del resource
+      if (employees) {
+        // Intentar múltiples métodos de recarga
+        if (typeof employees.reload === 'function') {
+          console.log('🔄 Usando employees.reload()')
+          employees.reload()
+        } else if (typeof employees.fetch === 'function') {
+          console.log('🔄 Usando employees.fetch()')
+          employees.fetch()
+        } else if (employees.submit) {
+          console.log('🔄 Usando employees.submit()')
+          employees.submit()
+        } else {
+          console.error('⚠️ No se encontró método de recarga en employees')
+          console.log('🔍 Métodos disponibles en employees:', Object.keys(employees))
+        }
+      } else {
+        console.error('⚠️ employees es null o undefined')
+      }
+    }, 150)
+  }
+}, { immediate: false })
 
 // Watcher simple para resetear datos cuando cambia el empleado
 watch(() => selectedEmployee.value, (newEmployee, oldEmployee) => {
