@@ -2,20 +2,20 @@
   <div class="flex-1 p-6 bg-gray-50 overflow-y-auto h-full">
     <!-- Header -->
     <div class="mb-8">
-      <h2 class="text-2xl font-semibold text-gray-900 mb-2">📄 AI CV Analysis</h2>
-      <p class="text-sm text-gray-600">Analyze candidate CVs using AI to evaluate fit and skills match</p>
+      <h2 class="text-2xl font-semibold text-gray-900 mb-2">📄 Análisis de CV con IA</h2>
+      <p class="text-sm text-gray-600">Analiza CVs de candidatos usando IA para evaluar la adecuación y coincidencia de habilidades</p>
     </div>
 
     <!-- Input Form Section -->
     <div v-if="!effectiveJobApplicant || !effectiveJobOpening" class="mb-6">
       <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-medium text-gray-900 mb-2">📝 Enter Analysis Details</h3>
-        <p class="text-sm text-gray-600 mb-6">Select a Job Applicant and Job Opening from the dropdowns below. The Job Opening will auto-fill when you select a Job Applicant.</p>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">📝 Ingresar Detalles del Análisis</h3>
+        <p class="text-sm text-gray-600 mb-6">Selecciona un Solicitante de Empleo y una Vacante de los menús desplegables a continuación. La Vacante se completará automáticamente cuando selecciones un Solicitante de Empleo.</p>
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div class="relative">
             <label for="job-applicant-input" class="block text-sm font-medium text-gray-700 mb-2">
-              <span>👤</span> Job Applicant
+              <span>👤</span> Solicitante de Empleo
             </label>
             <div class="flex gap-2">
               <div class="relative flex-1">
@@ -30,7 +30,7 @@
                   @keydown.escape="showApplicantDropdown = false"
                   @keydown.down.prevent="navigateApplicantDropdown(1)"
                   @keydown.up.prevent="navigateApplicantDropdown(-1)"
-                  :placeholder="formJobApplicant ? 'Type Job Applicant ID or name...' : 'Type Job Applicant ID or name manually...'"
+                  :placeholder="formJobApplicant ? 'Escribe el ID o nombre del Solicitante...' : 'Escribe el ID o nombre del Solicitante manualmente...'"
                   :disabled="loadingJobApplicants"
                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                 />
@@ -49,7 +49,7 @@
                 @click="toggleApplicantDropdown"
                 :disabled="loadingJobApplicants"
                 class="px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                title="Browse applicants list"
+                title="Explorar lista de solicitantes"
               >
                 <span class="text-lg">▼</span>
               </button>
@@ -60,7 +60,7 @@
               class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
             >
               <div v-if="filteredApplicants.length > 0" class="p-2">
-                <div class="text-xs text-gray-500 px-2 py-1 mb-1 font-semibold">Select from list ({{ filteredApplicants.length }} results):</div>
+                <div class="text-xs text-gray-500 px-2 py-1 mb-1 font-semibold">Seleccionar de la lista ({{ filteredApplicants.length }} resultados):</div>
               <div
                 v-for="(applicant, index) in filteredApplicants"
                 :key="applicant.name"
@@ -76,21 +76,21 @@
               </div>
               </div>
               <div v-else-if="applicantSearchText" class="p-4 text-sm text-gray-500 text-center">
-                No applicants found matching "{{ applicantSearchText }}"
+                No se encontraron solicitantes que coincidan con "{{ applicantSearchText }}"
               </div>
               <div v-else class="p-4 text-sm text-gray-500 text-center">
-                Start typing to search, or scroll to browse all applicants
+                Comienza a escribir para buscar, o desplázate para explorar todos los solicitantes
               </div>
             </div>
-            <p v-if="loadingJobApplicants" class="text-xs text-gray-500 mt-1">Loading applicants...</p>
+            <p v-if="loadingJobApplicants" class="text-xs text-gray-500 mt-1">Cargando solicitantes...</p>
             <p v-if="formJobApplicant && !loadingJobApplicants" class="text-xs text-green-600 mt-1">
-              ✓ Selected: {{ getApplicantDisplayName(formJobApplicant) }}
+              ✓ Seleccionado: {{ getApplicantDisplayName(formJobApplicant) }}
             </p>
           </div>
 
           <div class="relative">
             <label for="job-opening-input" class="block text-sm font-medium text-gray-700 mb-2">
-              <span>💼</span> Job Opening
+              <span>💼</span> Vacante
             </label>
             <div class="flex gap-2">
               <div class="relative flex-1">
@@ -105,7 +105,7 @@
                   @keydown.escape="showOpeningDropdown = false"
                   @keydown.down.prevent="navigateOpeningDropdown(1)"
                   @keydown.up.prevent="navigateOpeningDropdown(-1)"
-                  :placeholder="formJobOpening ? 'Type Job Opening ID or name...' : 'Type Job Opening ID or name manually...'"
+                  :placeholder="formJobOpening ? 'Escribe el ID o nombre de la Vacante...' : 'Escribe el ID o nombre de la Vacante manualmente...'"
                   :disabled="loadingJobOpenings"
                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                 />
@@ -124,7 +124,7 @@
                 @click="toggleOpeningDropdown"
                 :disabled="loadingJobOpenings"
                 class="px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                title="Browse openings list"
+                title="Explorar lista de vacantes"
               >
                 <span class="text-lg">▼</span>
               </button>
@@ -135,7 +135,7 @@
               class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
             >
               <div v-if="filteredOpenings.length > 0" class="p-2">
-                <div class="text-xs text-gray-500 px-2 py-1 mb-1 font-semibold">Select from list ({{ filteredOpenings.length }} results):</div>
+                <div class="text-xs text-gray-500 px-2 py-1 mb-1 font-semibold">Seleccionar de la lista ({{ filteredOpenings.length }} resultados):</div>
               <div
                 v-for="(opening, index) in filteredOpenings"
                 :key="opening.name"
@@ -151,15 +151,15 @@
               </div>
               </div>
               <div v-else-if="openingSearchText" class="p-4 text-sm text-gray-500 text-center">
-                No openings found matching "{{ openingSearchText }}"
+                No se encontraron vacantes que coincidan con "{{ openingSearchText }}"
               </div>
               <div v-else class="p-4 text-sm text-gray-500 text-center">
-                Start typing to search, or scroll to browse all openings
+                Comienza a escribir para buscar, o desplázate para explorar todas las vacantes
               </div>
             </div>
-            <p v-if="loadingJobOpenings" class="text-xs text-gray-500 mt-1">Loading openings...</p>
+            <p v-if="loadingJobOpenings" class="text-xs text-gray-500 mt-1">Cargando vacantes...</p>
             <p v-if="formJobOpening && !loadingJobOpenings" class="text-xs text-green-600 mt-1">
-              ✓ Selected: {{ getOpeningDisplayName(formJobOpening) }}
+              ✓ Seleccionado: {{ getOpeningDisplayName(formJobOpening) }}
             </p>
           </div>
         </div>
@@ -169,8 +169,8 @@
           :disabled="!canAnalyze || isAnalyzing" 
           class="w-full px-6 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
-          <span v-if="isAnalyzing">🔄 Analyzing...</span>
-          <span v-else>🚀 Start AI Analysis</span>
+          <span v-if="isAnalyzing">🔄 Analizando...</span>
+          <span v-else>🚀 Iniciar Análisis con IA</span>
         </button>
       </div>
     </div>
@@ -182,45 +182,45 @@
           <div class="border-r border-gray-200 pr-6">
             <div class="flex items-center gap-3 mb-4 pb-3 border-b border-gray-200">
               <span class="text-2xl">👤</span>
-              <h4 class="text-lg font-semibold text-gray-900">Job Applicant</h4>
+              <h4 class="text-lg font-semibold text-gray-900">Solicitante de Empleo</h4>
               <span class="text-xs text-gray-500 font-mono ml-auto">{{ effectiveJobApplicant }}</span>
             </div>
             <div v-if="applicantData" class="space-y-2">
-              <p class="text-sm"><span class="font-medium text-gray-700">Name:</span> <span class="text-gray-900">{{ applicantData.applicant_name || 'N/A' }}</span></p>
-              <p class="text-sm"><span class="font-medium text-gray-700">Email:</span> <span class="text-gray-900">{{ applicantData.email_id || 'N/A' }}</span></p>
-              <p v-if="applicantData.phone_number" class="text-sm"><span class="font-medium text-gray-700">Phone:</span> <span class="text-gray-900">{{ applicantData.phone_number }}</span></p>
-              <p v-if="applicantData.designation" class="text-sm"><span class="font-medium text-gray-700">Designation:</span> <span class="text-gray-900">{{ applicantData.designation }}</span></p>
-              <p v-if="applicantData.status" class="text-sm"><span class="font-medium text-gray-700">Status:</span> <span class="text-gray-900">{{ applicantData.status }}</span></p>
+              <p class="text-sm"><span class="font-medium text-gray-700">Nombre:</span> <span class="text-gray-900">{{ applicantData.applicant_name || 'N/A' }}</span></p>
+              <p class="text-sm"><span class="font-medium text-gray-700">Correo:</span> <span class="text-gray-900">{{ applicantData.email_id || 'N/A' }}</span></p>
+              <p v-if="applicantData.phone_number" class="text-sm"><span class="font-medium text-gray-700">Teléfono:</span> <span class="text-gray-900">{{ applicantData.phone_number }}</span></p>
+              <p v-if="applicantData.designation" class="text-sm"><span class="font-medium text-gray-700">Designación:</span> <span class="text-gray-900">{{ applicantData.designation }}</span></p>
+              <p v-if="applicantData.status" class="text-sm"><span class="font-medium text-gray-700">Estado:</span> <span class="text-gray-900">{{ applicantData.status }}</span></p>
             </div>
-            <div v-else class="text-sm text-gray-500 italic">Loading applicant data...</div>
+            <div v-else class="text-sm text-gray-500 italic">Cargando datos del solicitante...</div>
           </div>
 
           <div>
             <div class="flex items-center gap-3 mb-4 pb-3 border-b border-gray-200">
               <span class="text-2xl">💼</span>
-              <h4 class="text-lg font-semibold text-gray-900">Job Opening</h4>
+              <h4 class="text-lg font-semibold text-gray-900">Vacante</h4>
               <span class="text-xs text-gray-500 font-mono ml-auto">{{ effectiveJobOpening }}</span>
             </div>
             <div v-if="jobOpeningData" class="space-y-2">
-              <p class="text-sm"><span class="font-medium text-gray-700">Title:</span> <span class="text-gray-900">{{ jobOpeningData.job_title || 'N/A' }}</span></p>
-              <p v-if="jobOpeningData.designation" class="text-sm"><span class="font-medium text-gray-700">Designation:</span> <span class="text-gray-900">{{ jobOpeningData.designation }}</span></p>
-              <p v-if="jobOpeningData.company" class="text-sm"><span class="font-medium text-gray-700">Company:</span> <span class="text-gray-900">{{ jobOpeningData.company }}</span></p>
-              <p v-if="jobOpeningData.department" class="text-sm"><span class="font-medium text-gray-700">Department:</span> <span class="text-gray-900">{{ jobOpeningData.department }}</span></p>
-              <p v-if="jobOpeningData.location" class="text-sm"><span class="font-medium text-gray-700">Location:</span> <span class="text-gray-900">{{ jobOpeningData.location }}</span></p>
-              <p v-if="jobOpeningData.employment_type" class="text-sm"><span class="font-medium text-gray-700">Type:</span> <span class="text-gray-900">{{ jobOpeningData.employment_type }}</span></p>
-              <p v-if="jobOpeningData.status" class="text-sm"><span class="font-medium text-gray-700">Status:</span> <span class="text-gray-900">{{ jobOpeningData.status }}</span></p>
+              <p class="text-sm"><span class="font-medium text-gray-700">Título:</span> <span class="text-gray-900">{{ jobOpeningData.job_title || 'N/A' }}</span></p>
+              <p v-if="jobOpeningData.designation" class="text-sm"><span class="font-medium text-gray-700">Designación:</span> <span class="text-gray-900">{{ jobOpeningData.designation }}</span></p>
+              <p v-if="jobOpeningData.company" class="text-sm"><span class="font-medium text-gray-700">Empresa:</span> <span class="text-gray-900">{{ jobOpeningData.company }}</span></p>
+              <p v-if="jobOpeningData.department" class="text-sm"><span class="font-medium text-gray-700">Departamento:</span> <span class="text-gray-900">{{ jobOpeningData.department }}</span></p>
+              <p v-if="jobOpeningData.location" class="text-sm"><span class="font-medium text-gray-700">Ubicación:</span> <span class="text-gray-900">{{ jobOpeningData.location }}</span></p>
+              <p v-if="jobOpeningData.employment_type" class="text-sm"><span class="font-medium text-gray-700">Tipo:</span> <span class="text-gray-900">{{ jobOpeningData.employment_type }}</span></p>
+              <p v-if="jobOpeningData.status" class="text-sm"><span class="font-medium text-gray-700">Estado:</span> <span class="text-gray-900">{{ jobOpeningData.status }}</span></p>
             </div>
-            <div v-else class="text-sm text-gray-500 italic">Loading job opening data...</div>
+            <div v-else class="text-sm text-gray-500 italic">Cargando datos de la vacante...</div>
           </div>
         </div>
       </div>
       <div class="flex gap-3 flex-wrap">
         <button @click="analyzeCV" :disabled="isAnalyzing" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed">
-          <span v-if="isAnalyzing">🔄 Analyzing...</span>
-          <span v-else>🔍 Analyze CV</span>
+          <span v-if="isAnalyzing">🔄 Analizando...</span>
+          <span v-else>🔍 Analizar CV</span>
         </button>
-        <button @click="clearInputs" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">Change IDs</button>
-        <button v-if="analysis" @click="reloadAnalysis" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">🔄 Reload</button>
+        <button @click="clearInputs" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">Cambiar IDs</button>
+        <button v-if="analysis" @click="reloadAnalysis" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">🔄 Recargar</button>
       </div>
     </div>
 
@@ -238,7 +238,7 @@
 
     <!-- Recent CV Analysis Section -->
     <div v-if="!isAnalyzing && !analysis && !effectiveJobApplicant && !effectiveJobOpening" class="bg-white rounded-lg shadow p-6 mb-6">
-      <h3 class="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">📊 Recent CV Analysis</h3>
+      <h3 class="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">📊 Análisis de CV Recientes</h3>
       <div v-if="recentAnalyses.length > 0" class="max-h-96 overflow-y-auto pr-2 space-y-3">
         <div
           v-for="recent in recentAnalyses"
@@ -248,10 +248,10 @@
           <div class="flex justify-between items-start mb-2">
             <div class="flex-1">
               <div class="font-medium text-gray-900 mb-1">
-                {{ recent.candidate_name || recent.job_applicant || 'Unknown Candidate' }}
+                {{ recent.candidate_name || recent.job_applicant || 'Candidato Desconocido' }}
               </div>
               <div class="text-sm text-gray-600 mb-2">
-                {{ recent.job_title || recent.job_opening || 'Unknown Job' }}
+                {{ recent.job_title || recent.job_opening || 'Trabajo Desconocido' }}
               </div>
             </div>
             <span :class="[
@@ -266,13 +266,13 @@
           </div>
           <div v-if="recent.status === 'Completed'" class="flex gap-4 text-sm">
             <div class="text-gray-600">
-              <span class="font-medium">Skills:</span> {{ recent.skills_match_percentage || 0 }}%
+              <span class="font-medium">Habilidades:</span> {{ recent.skills_match_percentage || 0 }}%
             </div>
             <div class="text-gray-600">
-              <span class="font-medium">Experience:</span> {{ recent.experience_relevance || 0 }}/5
+              <span class="font-medium">Experiencia:</span> {{ recent.experience_relevance || 0 }}/5
             </div>
             <div class="text-gray-600">
-              <span class="font-medium">Confidence:</span> {{ recent.ai_confidence_score || 0 }}%
+              <span class="font-medium">Confianza:</span> {{ recent.ai_confidence_score || 0 }}%
             </div>
           </div>
           <div v-if="recent.analysis_timestamp" class="text-xs text-gray-500 mt-2">
@@ -282,8 +282,8 @@
       </div>
       <div v-else class="text-center py-8 text-gray-500">
         <div class="text-4xl mb-3">📭</div>
-        <p>No recent CV analysis found.</p>
-        <p class="text-sm mt-2">Start analyzing CVs to see them here.</p>
+        <p>No se encontraron análisis de CV recientes.</p>
+        <p class="text-sm mt-2">Comienza a analizar CVs para verlos aquí.</p>
       </div>
     </div>
 
@@ -292,60 +292,60 @@
       <div class="relative inline-block mb-6">
         <div class="w-16 h-16 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
       </div>
-      <h3 class="text-xl font-semibold text-gray-900 mb-2">🤖 AI is Analyzing CV...</h3>
-      <p class="text-sm text-gray-600 mb-6">This is a real analysis using OpenAI GPT-4</p>
+      <h3 class="text-xl font-semibold text-gray-900 mb-2">🤖 La IA está Analizando el CV...</h3>
+      <p class="text-sm text-gray-600 mb-6">Este es un análisis real usando OpenAI GPT-4</p>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-left">
         <div class="p-3 rounded-lg" :class="pollingAttempts > 0 ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-500'">
-          <span class="mr-2">✓</span> Request queued
+          <span class="mr-2">✓</span> Solicitud en cola
         </div>
         <div class="p-3 rounded-lg" :class="pollingAttempts > 2 ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-500'">
-          <span class="mr-2">⏳</span> Processing CV
+          <span class="mr-2">⏳</span> Procesando CV
         </div>
         <div class="p-3 rounded-lg" :class="pollingAttempts > 5 ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-500'">
-          <span class="mr-2">⏳</span> Calling OpenAI
+          <span class="mr-2">⏳</span> Llamando a OpenAI
         </div>
         <div class="p-3 rounded-lg" :class="pollingAttempts > 8 ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-500'">
-          <span class="mr-2">⏳</span> Parsing results
+          <span class="mr-2">⏳</span> Analizando resultados
         </div>
       </div>
       <div class="mb-4">
-        <p class="text-sm text-gray-600 mb-2">Checking status... ({{ pollingAttempts }}/30 attempts, ~{{ Math.round(pollingAttempts * 2) }}s elapsed)</p>
+        <p class="text-sm text-gray-600 mb-2">Verificando estado... ({{ pollingAttempts }}/30 intentos, ~{{ Math.round(pollingAttempts * 2) }}s transcurridos)</p>
         <div class="w-full bg-gray-200 rounded-full h-2">
           <div class="bg-blue-500 h-2 rounded-full transition-all" :style="{width: Math.min((pollingAttempts / 30) * 100, 100) + '%'}"></div>
         </div>
       </div>
-      <button v-if="pollingAttempts > 5" @click="cancelAnalysis" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">Cancel Analysis</button>
+      <button v-if="pollingAttempts > 5" @click="cancelAnalysis" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">Cancelar Análisis</button>
     </div>
 
     <!-- Analysis Results -->
     <div v-if="analysis" class="space-y-6">
       <div class="bg-white rounded-lg shadow p-6">
         <div class="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
-          <h3 v-if="analysis.status === 'Completed'" class="text-xl font-semibold text-gray-900">✅ Analysis Complete</h3>
-          <h3 v-else-if="analysis.status === 'Analyzing'" class="text-xl font-semibold text-gray-900">⏳ Analysis In Progress</h3>
-          <h3 v-else-if="analysis.status === 'Failed'" class="text-xl font-semibold text-gray-900">❌ Analysis Failed</h3>
-          <h3 v-else class="text-xl font-semibold text-gray-900">📊 Analysis (Status: {{ analysis.status }})</h3>
+          <h3 v-if="analysis.status === 'Completed'" class="text-xl font-semibold text-gray-900">✅ Análisis Completado</h3>
+          <h3 v-else-if="analysis.status === 'Analyzing'" class="text-xl font-semibold text-gray-900">⏳ Análisis en Progreso</h3>
+          <h3 v-else-if="analysis.status === 'Failed'" class="text-xl font-semibold text-gray-900">❌ Análisis Fallido</h3>
+          <h3 v-else class="text-xl font-semibold text-gray-900">📊 Análisis (Estado: {{ analysis.status }})</h3>
           <div v-if="analysis.analysis_timestamp" class="text-sm text-gray-500">
-            Analyzed on {{ formatDate(analysis.analysis_timestamp) }}
+            Analizado el {{ formatDate(analysis.analysis_timestamp) }}
           </div>
         </div>
 
         <!-- Debug Info -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6 text-sm text-blue-900">
-          <p class="font-semibold mb-2">🔍 Debug Info:</p>
-          <p><strong>Status:</strong> {{ analysis.status }}</p>
-          <p><strong>Analysis ID:</strong> {{ analysis.name }}</p>
-          <p><strong>Has text:</strong> {{ analysis.cv_analysis_text ? 'Yes (' + analysis.cv_analysis_text.length + ' chars)' : 'No' }}</p>
-          <p><strong>Skills:</strong> {{ analysis.skills_match_percentage || 'N/A' }}%</p>
-          <p><strong>Experience:</strong> {{ analysis.experience_relevance || 'N/A' }}</p>
-          <p><strong>Education:</strong> {{ analysis.education_match || 'N/A' }}</p>
+          <p class="font-semibold mb-2">🔍 Información de Depuración:</p>
+          <p><strong>Estado:</strong> {{ analysis.status }}</p>
+          <p><strong>ID del Análisis:</strong> {{ analysis.name }}</p>
+          <p><strong>Tiene texto:</strong> {{ analysis.cv_analysis_text ? 'Sí (' + analysis.cv_analysis_text.length + ' caracteres)' : 'No' }}</p>
+          <p><strong>Habilidades:</strong> {{ analysis.skills_match_percentage || 'N/A' }}%</p>
+          <p><strong>Experiencia:</strong> {{ analysis.experience_relevance || 'N/A' }}</p>
+          <p><strong>Educación:</strong> {{ analysis.education_match || 'N/A' }}</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div class="bg-gray-50 rounded-lg p-4">
             <div class="flex items-center gap-2 mb-2">
               <span class="text-xl">🎯</span>
-              <h4 class="text-sm font-medium text-gray-700">Skills Match</h4>
+              <h4 class="text-sm font-medium text-gray-700">Coincidencia de Habilidades</h4>
             </div>
             <div class="text-3xl font-bold text-gray-900 mb-2">{{ analysis.skills_match_percentage || 0 }}%</div>
             <div class="w-full bg-gray-200 rounded-full h-2">
@@ -356,7 +356,7 @@
           <div class="bg-gray-50 rounded-lg p-4">
             <div class="flex items-center gap-2 mb-2">
               <span class="text-xl">💼</span>
-              <h4 class="text-sm font-medium text-gray-700">Experience</h4>
+              <h4 class="text-sm font-medium text-gray-700">Experiencia</h4>
             </div>
             <div class="text-2xl mb-2">
               <span v-for="i in 5" :key="i" :class="i <= getExperienceRating() ? 'text-yellow-500' : 'text-gray-300'">★</span>
@@ -367,7 +367,7 @@
           <div class="bg-gray-50 rounded-lg p-4">
             <div class="flex items-center gap-2 mb-2">
               <span class="text-xl">🎓</span>
-              <h4 class="text-sm font-medium text-gray-700">Education</h4>
+              <h4 class="text-sm font-medium text-gray-700">Educación</h4>
             </div>
             <div class="text-2xl mb-2">
               <span v-for="i in 5" :key="i" :class="i <= getEducationRating() ? 'text-yellow-500' : 'text-gray-300'">★</span>
@@ -378,7 +378,7 @@
           <div class="bg-gray-50 rounded-lg p-4">
             <div class="flex items-center gap-2 mb-2">
               <span class="text-xl">📊</span>
-              <h4 class="text-sm font-medium text-gray-700">AI Confidence</h4>
+              <h4 class="text-sm font-medium text-gray-700">Confianza de la IA</h4>
             </div>
             <div class="text-3xl font-bold text-gray-900 mb-2">{{ analysis.ai_confidence_score || 0 }}%</div>
             <div class="w-full bg-gray-200 rounded-full h-2">
@@ -388,28 +388,28 @@
         </div>
 
         <div class="bg-gray-50 rounded-lg p-6 mb-6">
-          <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">📋 Detailed AI Analysis</h4>
+          <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">📋 Análisis Detallado de la IA</h4>
           <div v-if="analysis.cv_analysis_text && analysis.cv_analysis_text.trim().length > 0" class="text-gray-700 leading-relaxed whitespace-pre-wrap" v-html="analysis.cv_analysis_text"></div>
           <div v-else class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800">
-            <p class="font-semibold mb-2">⚠️ Analysis completed but no detailed text was generated.</p>
-            <p class="text-sm mb-2">This might happen if:</p>
+            <p class="font-semibold mb-2">⚠️ El análisis se completó pero no se generó texto detallado.</p>
+            <p class="text-sm mb-2">Esto podría suceder si:</p>
             <ul class="text-sm list-disc list-inside mb-3">
-              <li>The AI response was incomplete</li>
-              <li>There was an error parsing the AI response</li>
-              <li>The analysis data is still being processed</li>
+              <li>La respuesta de la IA estaba incompleta</li>
+              <li>Hubo un error al analizar la respuesta de la IA</li>
+              <li>Los datos del análisis aún se están procesando</li>
             </ul>
-            <button @click="reloadAnalysis" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">🔄 Reload Analysis</button>
+            <button @click="reloadAnalysis" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">🔄 Recargar Análisis</button>
           </div>
         </div>
 
         <div class="bg-gray-50 rounded-lg p-6">
-          <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">💡 AI Recommendations</h4>
+          <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">💡 Recomendaciones de la IA</h4>
           <div class="text-gray-700 leading-relaxed">
             <p v-if="analysis.ai_recommendations && analysis.ai_recommendations.trim().length > 0">
               {{ analysis.ai_recommendations }}
             </p>
             <p v-else class="text-gray-500 italic">
-              ⚠️ No recommendations were generated for this analysis.
+              ⚠️ No se generaron recomendaciones para este análisis.
             </p>
           </div>
         </div>
@@ -793,11 +793,11 @@ export default {
       }
       this.isAnalyzing = false
       this.pollingAttempts = 0
-      this.error = 'Analysis cancelled'
+      this.error = 'Análisis cancelado'
     },
     async analyzeCV() {
       if (!this.effectiveJobApplicant || !this.effectiveJobOpening) {
-        this.error = 'Please provide both Job Applicant ID and Job Opening ID'
+        this.error = 'Por favor proporciona tanto el ID del Solicitante de Empleo como el ID de la Vacante'
         return
       }
 
@@ -820,15 +820,15 @@ export default {
             await this.loadAnalysis(data.analysis_id)
             this.isAnalyzing = false
           } else if (data.status === 'error') {
-            this.error = data.message || 'Analysis failed to start'
+            this.error = data.message || 'El análisis falló al iniciar'
             this.isAnalyzing = false
           }
         } else {
-          this.error = 'Unexpected response from server'
+          this.error = 'Respuesta inesperada del servidor'
           this.isAnalyzing = false
         }
       } catch (error) {
-        this.error = error.message || 'Failed to start CV analysis. Please check your connection and try again.'
+        this.error = error.message || 'Error al iniciar el análisis de CV. Por favor verifica tu conexión e intenta nuevamente.'
         this.isAnalyzing = false
       }
     },
@@ -883,7 +883,7 @@ export default {
               if (this.pollingAttempts < maxAttempts) {
                 this.pollingInterval = setTimeout(poll, 2000)
               } else {
-                this.error = `Analysis still processing after ${maxAttempts * 2} seconds. The background workers might not be running. Please check if 'bench start' is running.`
+                this.error = `El análisis sigue procesándose después de ${maxAttempts * 2} segundos. Los trabajadores en segundo plano podrían no estar ejecutándose. Por favor verifica si 'bench start' está en ejecución.`
                 this.isAnalyzing = false
                 this.pollingInterval = null
                 this.analysis = analysis
@@ -893,7 +893,7 @@ export default {
               if (this.pollingAttempts < maxAttempts) {
                 this.pollingInterval = setTimeout(poll, 2000)
               } else {
-                this.error = `Unknown analysis status: ${analysis.status}. Showing current data anyway.`
+                this.error = `Estado de análisis desconocido: ${analysis.status}. Mostrando datos actuales de todos modos.`
                 this.analysis = analysis
                 this.isAnalyzing = false
                 this.pollingInterval = null
@@ -904,7 +904,7 @@ export default {
             if (this.pollingAttempts < maxAttempts) {
               this.pollingInterval = setTimeout(poll, 2000)
             } else {
-              this.error = 'Could not retrieve analysis status after multiple attempts'
+              this.error = 'No se pudo recuperar el estado del análisis después de múltiples intentos'
               this.isAnalyzing = false
               this.pollingInterval = null
             }
@@ -914,7 +914,7 @@ export default {
           if (this.pollingAttempts < maxAttempts && this.isAnalyzing) {
             this.pollingInterval = setTimeout(poll, 3000)
           } else {
-            this.error = 'Error checking analysis status: ' + (error.message || 'Unknown error')
+            this.error = 'Error al verificar el estado del análisis: ' + (error.message || 'Error desconocido')
             this.isAnalyzing = false
             this.pollingInterval = null
           }
@@ -962,16 +962,16 @@ export default {
             }
           }
         } else {
-          this.error = 'Analysis not found'
+          this.error = 'Análisis no encontrado'
         }
       } catch (error) {
-        this.error = 'Failed to load analysis: ' + (error.message || 'Unknown error')
+        this.error = 'Error al cargar el análisis: ' + (error.message || 'Error desconocido')
       }
     },
 
     async loadAnalysisById(analysisId = null) {
       if (!analysisId) {
-        this.error = 'Please provide an Analysis ID'
+        this.error = 'Por favor proporciona un ID de Análisis'
         return
       }
 
@@ -993,23 +993,23 @@ export default {
     getErrorMessage(analysis) {
       if (analysis.cv_analysis_text) {
         if (analysis.cv_analysis_text.includes('disabled')) {
-          return 'CV Analysis is disabled in AI HR Settings'
+          return 'El Análisis de CV está deshabilitado en la Configuración de IA de RRHH'
         }
         if (analysis.cv_analysis_text.includes('API key')) {
-          return 'OpenAI API key not configured in AI HR Settings'
+          return 'La clave API de OpenAI no está configurada en la Configuración de IA de RRHH'
         }
         if (analysis.cv_analysis_text.includes('rate limit')) {
-          return 'OpenAI API rate limit exceeded. Please wait and try again'
+          return 'Se excedió el límite de velocidad de la API de OpenAI. Por favor espera e intenta nuevamente'
         }
       }
-      return 'Analysis failed. Please try again or check error logs'
+      return 'El análisis falló. Por favor intenta nuevamente o revisa los registros de errores'
     },
 
     formatDate(dateString) {
       if (!dateString) return 'N/A'
       try {
         const date = new Date(dateString)
-        return date.toLocaleString('en-US', {
+        return date.toLocaleString('es-ES', {
           year: 'numeric',
           month: 'short',
           day: 'numeric',
@@ -1144,7 +1144,7 @@ export default {
         // Optionally, validate if selected applicant matches this opening
         if (this.formJobApplicant && this.applicantData) {
           if (this.applicantData.job_title !== this.formJobOpening) {
-            console.warn('Warning: Selected Job Applicant is not associated with the selected Job Opening')
+            console.warn('Advertencia: El Solicitante de Empleo seleccionado no está asociado con la Vacante seleccionada')
           }
         }
       } else {

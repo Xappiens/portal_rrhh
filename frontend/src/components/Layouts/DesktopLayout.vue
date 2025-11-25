@@ -70,17 +70,17 @@ const pageConfigs = {
     actionIcon: 'file-text'
   },
   'AIDashboard': {
-    title: 'AIDashboard',
-    actionButton: 'Ver AIDashboard',
+    title: 'Panel de Reclutamiento con IA',
+    actionButton: 'Ver Panel',
     actionIcon: 'computer'
   },
   'CVAnalysis': {
-    title: 'CV Analysis',
+    title: 'Análisis de CV con IA',
     actionButton: 'Analizar CV',
     actionIcon: 'file-text-icon'
   },
   'RecruitmentReports': {
-    title: 'Recruitment Reports',
+    title: 'Reportes de Reclutamiento',
     actionButton: 'Generar Reporte',
     actionIcon: 'file-text'
   },

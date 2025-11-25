@@ -156,17 +156,17 @@ const links = [
     to: 'Reportes',
   },
   {
-  label: 'AIDashboard',
+  label: 'Panel de IA',
   icon: AIDashboardIcon,
   to: 'AIDashboard',
   },
   {
-  label: 'CV Analysis',
+  label: 'Análisis de CV',
   icon: CVAnalysisIcon,
   to: 'CVAnalysis',
   },
   {
-    label: 'Recruitment Reports',
+    label: 'Reportes de Reclutamiento',
     icon: RecruitmentReportIcon,
     to: 'RecruitmentReports',
   }

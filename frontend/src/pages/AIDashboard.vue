@@ -3,14 +3,14 @@
     <div class="mb-8 pb-6 border-b border-gray-200">
       <div class="flex justify-between items-start">
         <div>
-          <h2 class="text-2xl font-semibold text-gray-900 mb-2">🤖 AI Recruitment Dashboard</h2>
-          <p class="text-sm text-gray-600">Track CV analyses and recruitment insights</p>
+          <h2 class="text-2xl font-semibold text-gray-900 mb-2">🤖 Panel de Reclutamiento con IA</h2>
+          <p class="text-sm text-gray-600">Rastrea análisis de CV e información de reclutamiento</p>
         </div>
         <div class="flex items-center gap-3">
-          <span v-if="refreshInterval" class="text-xs text-gray-500">Auto-refreshing every 30s</span>
+          <span v-if="refreshInterval" class="text-xs text-gray-500">Actualización automática cada 30s</span>
           <button @click="loadDashboardData" :disabled="loading" class="px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed">
-            <span v-if="loading">🔄 Loading...</span>
-            <span v-else>🔄 Refresh</span>
+            <span v-if="loading">🔄 Cargando...</span>
+            <span v-else>🔄 Actualizar</span>
           </button>
         </div>
       </div>
@@ -22,13 +22,13 @@
         <strong class="text-red-800">⚠️ Error:</strong> 
         <span class="text-red-700">{{ error }}</span>
       </div>
-      <button @click="loadDashboardData" class="px-3 py-1 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700">Retry</button>
+      <button @click="loadDashboardData" class="px-3 py-1 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700">Reintentar</button>
     </div>
 
     <!-- Loading State -->
     <div v-if="loading && !stats.cvsAnalyzed" class="text-center py-16">
       <div class="inline-block w-12 h-12 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-      <p class="text-gray-600">Loading dashboard data...</p>
+      <p class="text-gray-600">Cargando datos del panel...</p>
     </div>
 
     <!-- Dashboard Content -->
@@ -43,9 +43,9 @@
               </div>
             </div>
             <div class="ml-4">
-              <p class="text-sm font-medium text-gray-500">CVs Analyzed</p>
+              <p class="text-sm font-medium text-gray-500">CVs Analizados</p>
               <p class="text-3xl font-bold text-gray-900">{{ stats.cvsAnalyzed || 0 }}</p>
-              <p class="text-xs text-gray-500 mt-1">Total completed analyses</p>
+              <p class="text-xs text-gray-500 mt-1">Total de análisis completados</p>
             </div>
           </div>
         </div>
@@ -62,10 +62,10 @@
               </div>
             </div>
             <div class="ml-4">
-              <p class="text-sm font-medium text-gray-500">Reports Generated</p>
+              <p class="text-sm font-medium text-gray-500">Reportes Generados</p>
               <p class="text-3xl font-bold text-gray-900">{{ stats.reportsGenerated || 0 }}</p>
-              <p class="text-xs text-gray-500 mt-1">Recruitment reports created</p>
-              <p v-if="showReports" class="text-xs text-green-600 mt-1 font-semibold">← Click to view reports</p>
+              <p class="text-xs text-gray-500 mt-1">Reportes de reclutamiento creados</p>
+              <p v-if="showReports" class="text-xs text-green-600 mt-1 font-semibold">← Haz clic para ver reportes</p>
             </div>
           </div>
         </div>
@@ -78,9 +78,9 @@
               </div>
             </div>
             <div class="ml-4">
-              <p class="text-sm font-medium text-gray-500">Success Rate</p>
+              <p class="text-sm font-medium text-gray-500">Tasa de Éxito</p>
               <p class="text-3xl font-bold text-gray-900">{{ stats.successRate || 0 }}%</p>
-              <p class="text-xs text-gray-500 mt-1">Analysis completion rate</p>
+              <p class="text-xs text-gray-500 mt-1">Tasa de finalización de análisis</p>
             </div>
           </div>
         </div>
@@ -91,19 +91,19 @@
         <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
           <div class="flex items-center gap-3">
             <h3 class="text-lg font-semibold text-gray-900">
-              <span v-if="!showReports">📋 Recent CV Analysis</span>
-              <span v-else>📄 Recent Reports</span>
+              <span v-if="!showReports">📋 Análisis de CV Recientes</span>
+              <span v-else>📄 Reportes Recientes</span>
             </h3>
             <button 
               v-if="showReports"
               @click="showReports = false"
               class="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold"
             >
-              ← Back to Analyses
+              ← Volver a Análisis
             </button>
           </div>
           <span v-if="(showReports ? recentReports : recentAnalyses).length > 0" class="px-3 py-1 bg-blue-500 text-white rounded-full text-xs font-semibold">
-            {{ (showReports ? recentReports : recentAnalyses).length }} {{ showReports ? 'report' : 'analysis' }}{{ (showReports ? recentReports : recentAnalyses).length === 1 ? '' : 's' }}
+            {{ (showReports ? recentReports : recentAnalyses).length }} {{ showReports ? 'reporte' : 'análisis' }}{{ (showReports ? recentReports : recentAnalyses).length === 1 ? '' : '' }}
           </span>
         </div>
 
@@ -112,10 +112,10 @@
           <!-- Empty State for Reports -->
           <div v-if="recentReports.length === 0" class="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
             <div class="text-5xl mb-4">📭</div>
-            <h4 class="text-lg font-semibold text-gray-900 mb-2">No reports yet</h4>
-            <p class="text-sm text-gray-600 mb-6">Start generating recruitment reports to see them here.</p>
+            <h4 class="text-lg font-semibold text-gray-900 mb-2">Aún no hay reportes</h4>
+            <p class="text-sm text-gray-600 mb-6">Comienza a generar reportes de reclutamiento para verlos aquí.</p>
             <button @click="goToReports" class="px-4 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600">
-              Go to Reports →
+              Ir a Reportes →
             </button>
           </div>
 
@@ -132,7 +132,7 @@
                   📄
                 </div>
                 <div class="flex-1 min-w-0">
-                  <h4 class="text-base font-semibold text-gray-900 truncate mb-1">{{ report.job_title || 'Unknown Position' }}</h4>
+                  <h4 class="text-base font-semibold text-gray-900 truncate mb-1">{{ report.job_title || 'Posición Desconocida' }}</h4>
                   <p v-if="report.report_timestamp" class="text-xs text-gray-500 mt-1">
                     {{ formatDate(report.report_timestamp) }}
                   </p>
@@ -140,10 +140,10 @@
               </div>
               <div class="flex justify-between items-center pt-4 border-t border-gray-200">
                 <div class="flex flex-col items-center px-4 py-2 rounded-lg font-semibold shadow-sm bg-green-500 text-white">
-                  <span class="text-xs opacity-90 mb-1">Candidates</span>
+                  <span class="text-xs opacity-90 mb-1">Candidatos</span>
                   <span class="text-xl">{{ report.total_candidates || 0 }}</span>
                 </div>
-                <span class="text-sm text-green-600 font-semibold hover:text-green-800">View Report →</span>
+                <span class="text-sm text-green-600 font-semibold hover:text-green-800">Ver Reporte →</span>
               </div>
             </div>
           </div>
@@ -154,10 +154,10 @@
           <!-- Empty State for Analyses -->
           <div v-if="recentAnalyses.length === 0" class="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
             <div class="text-5xl mb-4">📭</div>
-            <h4 class="text-lg font-semibold text-gray-900 mb-2">No analysis yet</h4>
-            <p class="text-sm text-gray-600 mb-6">Start analyzing CVs to see results here.</p>
+            <h4 class="text-lg font-semibold text-gray-900 mb-2">Aún no hay análisis</h4>
+            <p class="text-sm text-gray-600 mb-6">Comienza a analizar CVs para ver los resultados aquí.</p>
             <button @click="goToAnalysis" class="px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600">
-              Go to CV Analysis →
+              Ir a Análisis de CV →
             </button>
           </div>
 
@@ -174,8 +174,8 @@
                   {{ (analysis.candidate_name || 'U')[0].toUpperCase() }}
                 </div>
                 <div class="flex-1 min-w-0">
-                  <h4 class="text-base font-semibold text-gray-900 truncate mb-1">{{ analysis.candidate_name || 'Unknown Candidate' }}</h4>
-                  <p class="text-sm text-gray-600 truncate">{{ analysis.job_title || 'Unknown Position' }}</p>
+                  <h4 class="text-base font-semibold text-gray-900 truncate mb-1">{{ analysis.candidate_name || 'Candidato Desconocido' }}</h4>
+                  <p class="text-sm text-gray-600 truncate">{{ analysis.job_title || 'Posición Desconocida' }}</p>
                   <p v-if="analysis.analysis_timestamp" class="text-xs text-gray-500 mt-1">
                     {{ formatDate(analysis.analysis_timestamp) }}
                   </p>
@@ -183,10 +183,10 @@
               </div>
               <div class="flex justify-between items-center pt-4 border-t border-gray-200">
                 <div class="flex flex-col items-center px-4 py-2 rounded-lg font-semibold shadow-sm" :class="getScoreClass(analysis.overall_score) === 'high' ? 'bg-green-500 text-white' : getScoreClass(analysis.overall_score) === 'medium' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'">
-                  <span class="text-xs opacity-90 mb-1">Score</span>
+                  <span class="text-xs opacity-90 mb-1">Puntuación</span>
                   <span class="text-xl">{{ analysis.overall_score || 0 }}%</span>
                 </div>
-                <span class="text-sm text-blue-600 font-semibold hover:text-blue-800">View Details →</span>
+                <span class="text-sm text-blue-600 font-semibold hover:text-blue-800">Ver Detalles →</span>
               </div>
             </div>
           </div>
@@ -285,10 +285,10 @@ export default {
             }
           })
         } else {
-          this.error = 'No data returned from server'
+          this.error = 'No se devolvieron datos del servidor'
         }
       } catch (error) {
-        this.error = error.message || error.exc || 'Failed to load dashboard data. Please check your connection.'
+        this.error = error.message || error.exc || 'Error al cargar los datos del panel. Por favor verifica tu conexión.'
       } finally {
         this.loading = false
       }
@@ -332,7 +332,7 @@ export default {
       if (!dateString) return 'N/A'
       try {
         const date = new Date(dateString)
-        return date.toLocaleString('en-US', {
+        return date.toLocaleString('es-ES', {
           year: 'numeric',
           month: 'short',
           day: 'numeric',
