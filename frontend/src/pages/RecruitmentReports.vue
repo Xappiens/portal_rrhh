@@ -1,16 +1,16 @@
 <template>
-  <div class="flex-1 p-6 bg-gray-50 overflow-y-auto min-h-0">
+  <div class="flex-1 h-full p-4 sm:p-6 bg-gray-50 overflow-y-auto">
     <!-- Header -->
-    <div class="mb-8">
-      <h2 class="text-2xl font-semibold text-gray-900 mb-2">📊 Informes de Reclutamiento IA</h2>
-      <p class="text-sm text-gray-600">Generar informes completos de reclutamiento basados en análisis de CV</p>
+    <div class="mb-6 sm:mb-8">
+      <h2 class="text-xl sm:text-2xl font-semibold text-gray-900 mb-2">📊 Informes de Reclutamiento IA</h2>
+      <p class="text-xs sm:text-sm text-gray-600">Generar informes completos de reclutamiento basados en análisis de CV</p>
     </div>
 
     <!-- Input Form Section -->
-    <div v-if="!effectiveJobOpening" class="mb-6">
-      <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-medium text-gray-900 mb-2">📝 Seleccionar Vacante</h3>
-        <p class="text-sm text-gray-600 mb-6">Selecciona una vacante para generar un informe de reclutamiento.</p>
+    <div v-if="!effectiveJobOpening" class="mb-4 sm:mb-6">
+      <div class="bg-white rounded-lg shadow p-4 sm:p-6">
+        <h3 class="text-base sm:text-lg font-medium text-gray-900 mb-2">📝 Seleccionar Vacante</h3>
+        <p class="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">Selecciona una vacante para generar un informe de reclutamiento.</p>
         
         <div class="mb-6">
           <div class="relative">
@@ -92,7 +92,7 @@
         <button 
           @click="generateReport" 
           :disabled="!canGenerate || isGenerating" 
-          class="w-full px-6 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          class="w-full px-4 sm:px-6 py-2 sm:py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm sm:text-base"
         >
           <span v-if="isGenerating">🔄 Generando...</span>
           <span v-else>🚀 Generar Informe</span>
@@ -100,16 +100,16 @@
       </div>
 
       <!-- All Existing Reports - Show when no job opening selected -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">📋 Todos los Informes de Reclutamiento</h3>
-        <div v-if="loadingReports" class="text-sm text-gray-500 italic py-8 text-center">Cargando informes...</div>
+      <div class="bg-white rounded-lg shadow p-4 sm:p-6">
+        <h3 class="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">📋 Todos los Informes de Reclutamiento</h3>
+        <div v-if="loadingReports" class="text-xs sm:text-sm text-gray-500 italic py-6 sm:py-8 text-center">Cargando informes...</div>
         <div v-else-if="allReports.length > 0" class="space-y-2 max-h-96 overflow-y-auto">
           <div 
             v-for="rpt in allReports" 
             :key="rpt.name"
             @click="loadReportAndSetJobOpening(rpt.name, rpt.job_opening)"
             :class="[
-              'p-4 rounded-lg border cursor-pointer transition-all',
+              'p-3 sm:p-4 rounded-lg border cursor-pointer transition-all',
               report && report.name === rpt.name 
                 ? 'bg-blue-50 border-blue-300 shadow-sm' 
                 : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
@@ -168,12 +168,12 @@
     </div>
 
     <!-- Report Controls -->
-    <div v-else class="mb-6">
-      <div class="bg-white rounded-lg shadow p-6 mb-4">
-        <div class="flex items-center gap-3 mb-4 pb-3 border-b border-gray-200">
-          <span class="text-2xl">💼</span>
-          <h4 class="text-lg font-semibold text-gray-900">Vacante</h4>
-          <span class="text-xs text-gray-500 font-mono ml-auto">{{ effectiveJobOpening }}</span>
+    <div v-else class="mb-4 sm:mb-6">
+      <div class="bg-white rounded-lg shadow p-4 sm:p-6 mb-3 sm:mb-4">
+        <div class="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 pb-2 sm:pb-3 border-b border-gray-200">
+          <span class="text-xl sm:text-2xl">💼</span>
+          <h4 class="text-base sm:text-lg font-semibold text-gray-900">Vacante</h4>
+          <span class="text-xs text-gray-500 font-mono ml-auto break-all">{{ effectiveJobOpening }}</span>
         </div>
         <div v-if="jobOpeningData" class="space-y-2">
           <p class="text-sm"><span class="font-medium text-gray-700">Título:</span> <span class="text-gray-900">{{ jobOpeningData.job_title || 'N/A' }}</span></p>
@@ -183,19 +183,19 @@
         </div>
         <div v-else class="text-sm text-gray-500 italic">Cargando datos de la vacante...</div>
       </div>
-      <div class="flex gap-3 flex-wrap">
-        <button @click="generateReport" :disabled="isGenerating" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed">
+      <div class="flex gap-2 sm:gap-3 flex-wrap">
+        <button @click="generateReport" :disabled="isGenerating" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-xs sm:text-sm">
           <span v-if="isGenerating">🔄 Generando...</span>
           <span v-else>📊 Generar Informe</span>
         </button>
-        <button @click="clearInputs" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">Cambiar Vacante</button>
-        <button v-if="report" @click="reloadReport" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">🔄 Recargar</button>
-        <button v-if="report && isStatusGenerating(report.status)" @click="triggerProcessing" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">⚡ Iniciar Procesamiento</button>
-        <button v-if="report && isStatusCompleted(report.status)" @click="exportToPDF" :disabled="exportingPDF" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
+        <button @click="clearInputs" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-xs sm:text-sm">Cambiar Vacante</button>
+        <button v-if="report" @click="reloadReport" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-xs sm:text-sm">🔄 Recargar</button>
+        <button v-if="report && isStatusGenerating(report.status)" @click="triggerProcessing" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-xs sm:text-sm">⚡ Iniciar Procesamiento</button>
+        <button v-if="report && isStatusCompleted(report.status)" @click="exportToPDF" :disabled="exportingPDF" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-xs sm:text-sm">
           <span v-if="exportingPDF">⏳ Exportando...</span>
           <span v-else>📄 Exportar PDF</span>
         </button>
-        <button v-if="report && isStatusCompleted(report.status)" @click="exportToExcel" :disabled="exportingExcel" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
+        <button v-if="report && isStatusCompleted(report.status)" @click="exportToExcel" :disabled="exportingExcel" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-xs sm:text-sm">
           <span v-if="exportingExcel">⏳ Exportando...</span>
           <span v-else>📊 Exportar Excel</span>
         </button>
@@ -203,42 +203,42 @@
     </div>
 
     <!-- Error Message -->
-    <div v-if="error" class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <span class="text-xl">⚠️</span>
-        <div>
-          <strong class="text-red-800">Error:</strong> 
-          <span class="text-red-700">{{ error }}</span>
+    <div v-if="error" class="mb-4 sm:mb-6 bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 flex items-start sm:items-center justify-between gap-2 sm:gap-0">
+      <div class="flex items-start sm:items-center gap-2 sm:gap-3 flex-1 min-w-0">
+        <span class="text-lg sm:text-xl flex-shrink-0">⚠️</span>
+        <div class="flex-1 min-w-0">
+          <strong class="text-red-800 text-xs sm:text-sm">Error:</strong> 
+          <span class="text-red-700 text-xs sm:text-sm break-words">{{ error }}</span>
         </div>
       </div>
-      <button @click="clearError" class="text-red-600 hover:text-red-800">✕</button>
+      <button @click="clearError" class="text-red-600 hover:text-red-800 flex-shrink-0 text-lg sm:text-xl">✕</button>
     </div>
 
     <!-- Loading State -->
-    <div v-if="isGenerating && !report" class="bg-white rounded-lg shadow p-8 text-center mb-6">
-      <div class="relative inline-block mb-6">
-        <div class="w-16 h-16 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
+    <div v-if="isGenerating && !report" class="bg-white rounded-lg shadow p-6 sm:p-8 text-center mb-4 sm:mb-6">
+      <div class="relative inline-block mb-4 sm:mb-6">
+        <div class="w-12 h-12 sm:w-16 sm:h-16 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
       </div>
-      <h3 class="text-xl font-semibold text-gray-900 mb-2">🤖 Generando Informe...</h3>
-      <p class="text-sm text-gray-600 mb-6">Esto puede tardar unos momentos</p>
-      <div class="mb-4">
-        <p class="text-sm text-gray-600 mb-2">Verificando estado... ({{ pollingAttempts }}/60 intentos, ~{{ Math.round(pollingAttempts * 2) }}s transcurridos)</p>
+      <h3 class="text-lg sm:text-xl font-semibold text-gray-900 mb-2">🤖 Generando Informe...</h3>
+      <p class="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">Esto puede tardar unos momentos</p>
+      <div class="mb-3 sm:mb-4">
+        <p class="text-xs sm:text-sm text-gray-600 mb-2">Verificando estado... ({{ pollingAttempts }}/60 intentos, ~{{ Math.round(pollingAttempts * 2) }}s transcurridos)</p>
         <div class="w-full bg-gray-200 rounded-full h-2">
           <div class="bg-blue-500 h-2 rounded-full transition-all" :style="{width: Math.min((pollingAttempts / 60) * 100, 100) + '%'}"></div>
         </div>
       </div>
-      <button v-if="pollingAttempts > 5" @click="cancelGeneration" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">Cancelar Generación</button>
+      <button v-if="pollingAttempts > 5" @click="cancelGeneration" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-xs sm:text-sm">Cancelar Generación</button>
     </div>
 
     <!-- Report Results -->
-    <div v-if="report" class="space-y-6">
-      <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
-          <h3 v-if="isStatusCompleted(report.status)" class="text-xl font-semibold text-gray-900">✅ Informe Completo</h3>
-          <h3 v-else-if="isStatusGenerating(report.status)" class="text-xl font-semibold text-gray-900">⏳ Informe Generándose</h3>
-          <h3 v-else-if="isStatusFailed(report.status)" class="text-xl font-semibold text-gray-900">❌ Informe Fallido</h3>
-          <h3 v-else class="text-xl font-semibold text-gray-900">📊 Informe (Estado: {{ report.status }})</h3>
-          <div class="flex items-center gap-3">
+    <div v-if="report" class="space-y-4 sm:space-y-6">
+      <div class="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 mb-3 sm:mb-4 pb-3 sm:pb-4 border-b border-gray-200">
+          <h3 v-if="isStatusCompleted(report.status)" class="text-lg sm:text-xl font-semibold text-gray-900">✅ Informe Completo</h3>
+          <h3 v-else-if="isStatusGenerating(report.status)" class="text-lg sm:text-xl font-semibold text-gray-900">⏳ Informe Generándose</h3>
+          <h3 v-else-if="isStatusFailed(report.status)" class="text-lg sm:text-xl font-semibold text-gray-900">❌ Informe Fallido</h3>
+          <h3 v-else class="text-lg sm:text-xl font-semibold text-gray-900">📊 Informe (Estado: {{ report.status }})</h3>
+          <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
             <div v-if="report.report_generated_date" class="text-sm text-gray-500">
               Generado el {{ formatDate(report.report_generated_date) }}
             </div>
@@ -256,35 +256,35 @@
         </div>
 
         <!-- Report Summary - Always show basic info -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div class="bg-gray-50 rounded-lg p-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <div class="bg-gray-50 rounded-lg p-3 sm:p-4">
             <div class="flex items-center gap-2 mb-2">
-              <span class="text-xl">📋</span>
-              <h4 class="text-sm font-medium text-gray-700">ID del Informe</h4>
+              <span class="text-lg sm:text-xl">📋</span>
+              <h4 class="text-xs sm:text-sm font-medium text-gray-700">ID del Informe</h4>
             </div>
-            <div class="text-sm font-mono text-gray-900">{{ report.name }}</div>
+            <div class="text-xs sm:text-sm font-mono text-gray-900 break-all">{{ report.name }}</div>
           </div>
 
-          <div class="bg-gray-50 rounded-lg p-4">
+          <div class="bg-gray-50 rounded-lg p-3 sm:p-4">
             <div class="flex items-center gap-2 mb-2">
-              <span class="text-xl">👥</span>
-              <h4 class="text-sm font-medium text-gray-700">Candidatos Analizados</h4>
+              <span class="text-lg sm:text-xl">👥</span>
+              <h4 class="text-xs sm:text-sm font-medium text-gray-700">Candidatos Analizados</h4>
             </div>
-            <div class="text-3xl font-bold text-gray-900">{{ report.candidates_analyzed || 0 }}</div>
+            <div class="text-2xl sm:text-3xl font-bold text-gray-900">{{ report.candidates_analyzed || 0 }}</div>
           </div>
 
-          <div class="bg-gray-50 rounded-lg p-4">
+          <div class="bg-gray-50 rounded-lg p-3 sm:p-4">
             <div class="flex items-center gap-2 mb-2">
-              <span class="text-xl">🏆</span>
-              <h4 class="text-sm font-medium text-gray-700">Mejores Candidatos</h4>
+              <span class="text-lg sm:text-xl">🏆</span>
+              <h4 class="text-xs sm:text-sm font-medium text-gray-700">Mejores Candidatos</h4>
             </div>
-            <div class="text-3xl font-bold text-gray-900">{{ report.top_candidates ? report.top_candidates.length : 0 }}</div>
+            <div class="text-2xl sm:text-3xl font-bold text-gray-900">{{ report.top_candidates ? report.top_candidates.length : 0 }}</div>
           </div>
         </div>
 
         <!-- Show info when generating -->
-        <div v-if="isStatusGenerating(report.status)" class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
-          <h4 class="text-lg font-semibold text-yellow-900 mb-4 pb-3 border-b border-yellow-300">⏳ El informe se está generando</h4>
+        <div v-if="isStatusGenerating(report.status)" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 sm:p-6 mb-4 sm:mb-6">
+          <h4 class="text-base sm:text-lg font-semibold text-yellow-900 mb-3 sm:mb-4 pb-2 sm:pb-3 border-b border-yellow-300">⏳ El informe se está generando</h4>
           <div class="text-yellow-800">
             <p class="mb-2">El informe se está procesando actualmente en segundo plano.</p>
             <p class="mb-2"><strong>ID del Informe:</strong> <span class="font-mono">{{ report.name }}</span></p>
@@ -304,50 +304,50 @@
         </div>
 
         <!-- AI Analysis Summary - Show when completed OR when generating and has content -->
-        <div v-if="isStatusCompleted(report.status) || (isStatusGenerating(report.status) && report.ai_analysis_summary && report.ai_analysis_summary !== '<p>Report is being generated. Please wait...</p>')" class="bg-gray-50 rounded-lg p-6 mb-6">
-          <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">📋 Resumen Ejecutivo</h4>
+        <div v-if="isStatusCompleted(report.status) || (isStatusGenerating(report.status) && report.ai_analysis_summary && report.ai_analysis_summary !== '<p>Report is being generated. Please wait...</p>')" class="bg-gray-50 rounded-lg p-4 sm:p-6 mb-4 sm:mb-6">
+          <h4 class="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 pb-2 sm:pb-3 border-b border-gray-200">📋 Resumen Ejecutivo</h4>
           <div v-if="report.ai_analysis_summary && report.ai_analysis_summary !== '<p>Report is being generated. Please wait...</p>'" class="text-gray-700 leading-relaxed prose max-w-none" v-html="report.ai_analysis_summary"></div>
           <div v-else-if="isStatusCompleted(report.status)" class="text-gray-500 italic">No hay resumen disponible</div>
           <div v-else class="text-gray-500 italic">El resumen aparecerá cuando el informe esté listo...</div>
         </div>
 
         <!-- Top Candidates -->
-        <div v-if="isStatusCompleted(report.status) && report.top_candidates && report.top_candidates.length > 0" class="bg-gray-50 rounded-lg p-6 mb-6">
-          <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">🏆 Mejores Candidatos</h4>
-          <div class="overflow-x-auto">
+        <div v-if="isStatusCompleted(report.status) && report.top_candidates && report.top_candidates.length > 0" class="bg-gray-50 rounded-lg p-4 sm:p-6 mb-4 sm:mb-6">
+          <h4 class="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 pb-2 sm:pb-3 border-b border-gray-200">🏆 Mejores Candidatos</h4>
+          <div class="overflow-x-auto -mx-4 sm:mx-0">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-100">
                 <tr>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Rango</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Candidato</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Puntuación</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Recomendación</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Fortalezas</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Preocupaciones</th>
-                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Acciones</th>
+                  <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 uppercase">Rango</th>
+                  <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 uppercase">Candidato</th>
+                  <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 uppercase">Puntuación</th>
+                  <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 uppercase">Recomendación</th>
+                  <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 uppercase hidden md:table-cell">Fortalezas</th>
+                  <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 uppercase hidden md:table-cell">Preocupaciones</th>
+                  <th class="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-medium text-gray-700 uppercase">Acciones</th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr v-for="(candidate, index) in report.top_candidates" :key="candidate.name || candidate.candidate || index" class="hover:bg-gray-50">
-                  <td class="px-4 py-3 text-sm font-medium text-gray-900">#{{ candidate.ai_ranking || index + 1 }}</td>
-                  <td class="px-4 py-3 text-sm text-gray-900">{{ candidate.candidate_name || candidate.candidate || 'N/A' }}</td>
-                  <td class="px-4 py-3 text-sm text-gray-900">
+                  <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900">#{{ candidate.ai_ranking || index + 1 }}</td>
+                  <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-900">{{ candidate.candidate_name || candidate.candidate || 'N/A' }}</td>
+                  <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-900">
                     <div class="flex items-center">
                       <span class="font-semibold">{{ candidate.overall_score || 0 }}%</span>
-                      <div class="ml-2 w-16 bg-gray-200 rounded-full h-2">
+                      <div class="ml-1 sm:ml-2 w-12 sm:w-16 bg-gray-200 rounded-full h-2">
                         <div class="bg-blue-500 h-2 rounded-full" :style="{width: (candidate.overall_score || 0) + '%'}"></div>
                       </div>
                     </div>
                   </td>
-                  <td class="px-4 py-3 text-sm">
-                    <span :class="getRecommendationClass(candidate.recommendation)" class="px-2 py-1 rounded-full text-xs font-medium">
+                  <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">
+                    <span :class="getRecommendationClass(candidate.recommendation)" class="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium">
                       {{ candidate.recommendation || 'N/A' }}
                     </span>
                   </td>
-                  <td class="px-4 py-3 text-sm text-gray-600 max-w-xs">{{ candidate.strengths || 'N/A' }}</td>
-                  <td class="px-4 py-3 text-sm text-gray-600 max-w-xs">{{ candidate.concerns || 'N/A' }}</td>
-                  <td class="px-4 py-3 text-sm">
-                    <button v-if="candidate.cv_analysis_link" @click="viewCVAnalysis(candidate.cv_analysis_link)" class="text-blue-600 hover:text-blue-800 underline">Ver Análisis de CV</button>
+                  <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600 max-w-xs hidden md:table-cell">{{ candidate.strengths || 'N/A' }}</td>
+                  <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600 max-w-xs hidden md:table-cell">{{ candidate.concerns || 'N/A' }}</td>
+                  <td class="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">
+                    <button v-if="candidate.cv_analysis_link" @click="viewCVAnalysis(candidate.cv_analysis_link)" class="text-blue-600 hover:text-blue-800 underline text-xs">Ver Análisis</button>
                     <span v-else class="text-gray-400 text-xs">Sin enlace</span>
                   </td>
                 </tr>
@@ -357,36 +357,36 @@
         </div>
         
         <!-- Show message when no top candidates -->
-        <div v-if="isStatusCompleted(report.status) && (!report.top_candidates || report.top_candidates.length === 0)" class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
-          <h4 class="text-lg font-semibold text-yellow-900 mb-2">🏆 Mejores Candidatos</h4>
-          <p class="text-yellow-800">No se encontraron mejores candidatos. Esto generalmente significa que no hay análisis de CV completados para esta vacante.</p>
+        <div v-if="isStatusCompleted(report.status) && (!report.top_candidates || report.top_candidates.length === 0)" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 sm:p-6 mb-4 sm:mb-6">
+          <h4 class="text-base sm:text-lg font-semibold text-yellow-900 mb-2">🏆 Mejores Candidatos</h4>
+          <p class="text-xs sm:text-sm text-yellow-800">No se encontraron mejores candidatos. Esto generalmente significa que no hay análisis de CV completados para esta vacante.</p>
         </div>
 
         <!-- Hiring Recommendations - Show when completed -->
-        <div v-if="isStatusCompleted(report.status)" class="bg-gray-50 rounded-lg p-6 mb-6">
-          <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">💡 Recomendaciones de Contratación</h4>
+        <div v-if="isStatusCompleted(report.status)" class="bg-gray-50 rounded-lg p-4 sm:p-6 mb-4 sm:mb-6">
+          <h4 class="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 pb-2 sm:pb-3 border-b border-gray-200">💡 Recomendaciones de Contratación</h4>
           <div v-if="report.hiring_recommendations && report.hiring_recommendations.trim().length > 0" class="text-gray-700 leading-relaxed prose max-w-none" v-html="report.hiring_recommendations"></div>
           <div v-else class="text-gray-500 italic">No hay recomendaciones disponibles</div>
         </div>
 
         <!-- Skills Gap Analysis - Show when completed -->
-        <div v-if="isStatusCompleted(report.status)" class="bg-gray-50 rounded-lg p-6 mb-6">
-          <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">📊 Análisis de Brecha de Habilidades</h4>
+        <div v-if="isStatusCompleted(report.status)" class="bg-gray-50 rounded-lg p-4 sm:p-6 mb-4 sm:mb-6">
+          <h4 class="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 pb-2 sm:pb-3 border-b border-gray-200">📊 Análisis de Brecha de Habilidades</h4>
           <div v-if="report.skills_gap_analysis && report.skills_gap_analysis.trim().length > 0" class="text-gray-700 leading-relaxed whitespace-pre-wrap font-mono text-sm bg-white p-4 rounded border">{{ report.skills_gap_analysis }}</div>
           <div v-else class="text-gray-500 italic">No hay análisis de brecha de habilidades disponible</div>
         </div>
 
         <!-- Market Insights - Show when completed -->
-        <div v-if="isStatusCompleted(report.status)" class="bg-gray-50 rounded-lg p-6 mb-6">
-          <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">🌐 Perspectivas del Mercado</h4>
+        <div v-if="isStatusCompleted(report.status)" class="bg-gray-50 rounded-lg p-4 sm:p-6 mb-4 sm:mb-6">
+          <h4 class="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 pb-2 sm:pb-3 border-b border-gray-200">🌐 Perspectivas del Mercado</h4>
           <div v-if="report.market_insights && report.market_insights.trim().length > 0" class="text-gray-700 leading-relaxed whitespace-pre-wrap font-mono text-sm bg-white p-4 rounded border">{{ report.market_insights }}</div>
           <div v-else class="text-gray-500 italic">No hay perspectivas del mercado disponibles</div>
         </div>
         
         <!-- Debug Info Section - Show all report data -->
-        <div v-if="isStatusCompleted(report.status)" class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-          <h4 class="text-lg font-semibold text-blue-900 mb-4 pb-3 border-b border-blue-300">🔍 Detalles del Informe</h4>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div v-if="isStatusCompleted(report.status)" class="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6 mb-4 sm:mb-6">
+          <h4 class="text-base sm:text-lg font-semibold text-blue-900 mb-3 sm:mb-4 pb-2 sm:pb-3 border-b border-blue-300">🔍 Detalles del Informe</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
             <div>
               <strong class="text-blue-900">ID del Informe:</strong>
               <span class="text-blue-700 font-mono ml-2">{{ report.name }}</span>

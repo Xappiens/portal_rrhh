@@ -2,8 +2,20 @@
   <div class="flex-1 p-6 bg-gray-50 overflow-y-auto h-full">
     <!-- Header -->
     <div class="mb-8">
-      <h2 class="text-2xl font-semibold text-gray-900 mb-2">📄 Análisis de CV con IA</h2>
-      <p class="text-sm text-gray-600">Analiza CVs de candidatos usando IA para evaluar la adecuación y coincidencia de habilidades</p>
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-2">
+        <div class="flex-1 min-w-0">
+          <h2 class="text-xl sm:text-2xl font-semibold text-gray-900 mb-2">📄 Análisis de CV con IA</h2>
+          <p class="text-xs sm:text-sm text-gray-600">Analiza CVs de candidatos usando IA para evaluar la adecuación y coincidencia de habilidades</p>
+        </div>
+        <button 
+          v-if="analysis || isAnalyzing"
+          @click="goBackToMain"
+          class="w-full sm:w-auto px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-semibold flex items-center justify-center gap-2 flex-shrink-0 text-sm sm:text-base"
+        >
+          <span>←</span>
+          <span>Volver al Formulario</span>
+        </button>
+      </div>
     </div>
 
     <!-- Input Form Section -->
@@ -289,11 +301,20 @@
 
     <!-- Loading State -->
     <div v-if="isAnalyzing && !analysis" class="bg-white rounded-lg shadow p-8 text-center mb-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg sm:text-xl font-semibold text-gray-900">🤖 La IA está Analizando el CV...</h3>
+        <button 
+          @click="goBackToMain"
+          class="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-semibold flex items-center gap-2 text-xs sm:text-sm flex-shrink-0"
+        >
+          <span>←</span>
+          <span class="hidden sm:inline">Volver</span>
+        </button>
+      </div>
       <div class="relative inline-block mb-6">
         <div class="w-16 h-16 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
       </div>
-      <h3 class="text-xl font-semibold text-gray-900 mb-2">🤖 La IA está Analizando el CV...</h3>
-      <p class="text-sm text-gray-600 mb-6">Este es un análisis real usando OpenAI GPT-4</p>
+      <p class="text-xs sm:text-sm text-gray-600 mb-6">Este es un análisis real usando OpenAI GPT-4</p>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-left">
         <div class="p-3 rounded-lg" :class="pollingAttempts > 0 ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-500'">
           <span class="mr-2">✓</span> Solicitud en cola
@@ -309,25 +330,34 @@
         </div>
       </div>
       <div class="mb-4">
-        <p class="text-sm text-gray-600 mb-2">Verificando estado... ({{ pollingAttempts }}/30 intentos, ~{{ Math.round(pollingAttempts * 2) }}s transcurridos)</p>
+        <p class="text-xs sm:text-sm text-gray-600 mb-2">Verificando estado... ({{ pollingAttempts }}/30 intentos, ~{{ Math.round(pollingAttempts * 2) }}s transcurridos)</p>
         <div class="w-full bg-gray-200 rounded-full h-2">
           <div class="bg-blue-500 h-2 rounded-full transition-all" :style="{width: Math.min((pollingAttempts / 30) * 100, 100) + '%'}"></div>
         </div>
       </div>
-      <button v-if="pollingAttempts > 5" @click="cancelAnalysis" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">Cancelar Análisis</button>
+      <button v-if="pollingAttempts > 5" @click="cancelAnalysis" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-xs sm:text-sm">Cancelar Análisis</button>
     </div>
 
     <!-- Analysis Results -->
     <div v-if="analysis" class="space-y-6">
       <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
-          <h3 v-if="analysis.status === 'Completed'" class="text-xl font-semibold text-gray-900">✅ Análisis Completado</h3>
-          <h3 v-else-if="analysis.status === 'Analyzing'" class="text-xl font-semibold text-gray-900">⏳ Análisis en Progreso</h3>
-          <h3 v-else-if="analysis.status === 'Failed'" class="text-xl font-semibold text-gray-900">❌ Análisis Fallido</h3>
-          <h3 v-else class="text-xl font-semibold text-gray-900">📊 Análisis (Estado: {{ analysis.status }})</h3>
-          <div v-if="analysis.analysis_timestamp" class="text-sm text-gray-500">
-            Analizado el {{ formatDate(analysis.analysis_timestamp) }}
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 mb-4 pb-4 border-b border-gray-200">
+          <div class="flex-1 min-w-0">
+            <h3 v-if="analysis.status === 'Completed'" class="text-lg sm:text-xl font-semibold text-gray-900">✅ Análisis Completado</h3>
+            <h3 v-else-if="analysis.status === 'Analyzing'" class="text-lg sm:text-xl font-semibold text-gray-900">⏳ Análisis en Progreso</h3>
+            <h3 v-else-if="analysis.status === 'Failed'" class="text-lg sm:text-xl font-semibold text-gray-900">❌ Análisis Fallido</h3>
+            <h3 v-else class="text-lg sm:text-xl font-semibold text-gray-900">📊 Análisis (Estado: {{ analysis.status }})</h3>
+            <div v-if="analysis.analysis_timestamp" class="text-xs sm:text-sm text-gray-500 mt-1">
+              Analizado el {{ formatDate(analysis.analysis_timestamp) }}
+            </div>
           </div>
+          <button 
+            @click="goBackToMain"
+            class="w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-semibold flex items-center justify-center gap-2 flex-shrink-0 text-xs sm:text-sm"
+          >
+            <span>←</span>
+            <span>Volver al Formulario</span>
+          </button>
         </div>
 
         <!-- Debug Info -->
@@ -556,6 +586,22 @@ export default {
       this.isAnalyzing = false
       this.applicantData = null
       this.jobOpeningData = null
+    },
+    goBackToMain() {
+      // Stop any ongoing polling
+      if (this.pollingInterval) {
+        clearTimeout(this.pollingInterval)
+        this.pollingInterval = null
+      }
+      // Clear analysis and reset analyzing state, but keep form inputs
+      this.analysis = null
+      this.isAnalyzing = false
+      this.pollingAttempts = 0
+      this.error = null
+      // Scroll to top to show the form
+      this.$nextTick(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      })
     },
     clearApplicant() {
       this.formJobApplicant = ''
