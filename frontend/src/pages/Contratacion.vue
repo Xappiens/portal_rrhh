@@ -627,8 +627,6 @@ const employees = createResource({
       filters: JSON.stringify(filters)
     }
     
-    console.log('📤 makeParams ejecutado:', filters)
-    
     return params
   }
 })
@@ -728,19 +726,8 @@ const handleProvinciaBlur = () => {
 }
 
 const selectProvincia = async (provincia) => {
-  console.log('🔍 Seleccionando provincia:', provincia)
-  console.log('🔍 Filtros ANTES:', {
-    provincia: searchFilters.value.provincia,
-    company: searchFilters.value.company
-  })
-  
   provinciaSearchText.value = provincia
   searchFilters.value.provincia = provincia
-  
-  console.log('🔍 Filtros DESPUÉS:', {
-    provincia: searchFilters.value.provincia,
-    company: searchFilters.value.company
-  })
   
   showProvinciaDropdown.value = false
   highlightedProvinciaIndex.value = -1
@@ -749,13 +736,10 @@ const selectProvincia = async (provincia) => {
   await new Promise(resolve => setTimeout(resolve, 100))
   
   // Forzar recarga del resource con nuevos parámetros
-  console.log('🔄 Forzando recarga del resource...')
   if (employees) {
     if (typeof employees.reload === 'function') {
-      console.log('🔄 Llamando employees.reload()')
       employees.reload()
     } else if (typeof employees.fetch === 'function') {
-      console.log('🔄 Llamando employees.fetch()')
       employees.fetch()
     }
   }
@@ -826,19 +810,8 @@ const handleCompanyBlur = () => {
 }
 
 const selectCompany = async (company) => {
-  console.log('🔍 Seleccionando empresa:', company)
-  console.log('🔍 Filtros ANTES:', {
-    provincia: searchFilters.value.provincia,
-    company: searchFilters.value.company
-  })
-  
   companySearchText.value = company
   searchFilters.value.company = company
-  
-  console.log('🔍 Filtros DESPUÉS:', {
-    provincia: searchFilters.value.provincia,
-    company: searchFilters.value.company
-  })
   
   showCompanyDropdown.value = false
   highlightedCompanyIndex.value = -1
@@ -847,13 +820,10 @@ const selectCompany = async (company) => {
   await new Promise(resolve => setTimeout(resolve, 100))
   
   // Forzar recarga del resource con nuevos parámetros
-  console.log('🔄 Forzando recarga del resource...')
   if (employees) {
     if (typeof employees.reload === 'function') {
-      console.log('🔄 Llamando employees.reload()')
       employees.reload()
     } else if (typeof employees.fetch === 'function') {
-      console.log('🔄 Llamando employees.fetch()')
       employees.fetch()
     }
   }
@@ -907,30 +877,23 @@ const loadJobOffers = async (employeeName) => {
 // Función para cargar modificaciones RRHH para un solo job offer
 const loadModificacionesForSingleJobOffer = async (jobOfferName) => {
   try {
-    console.log('🔄 Cargando modificaciones para Job Offer:', jobOfferName)
-
     // Verificar si ya tenemos las modificaciones para este job offer
     const existingModificaciones = modificacionesData.value.filter(mod => mod.job_offer_name === jobOfferName)
     if (existingModificaciones.length > 0) {
-      console.log('✅ Modificaciones ya cargadas para:', jobOfferName)
       return
     }
 
     // Verificar si ya se está cargando para este job offer
     if (isLoadingModificaciones.value) {
-      console.log('⏳ Ya se está cargando modificaciones...')
       return
     }
 
     isLoadingModificaciones.value = true
-    console.log('📡 Llamando API de modificaciones...')
 
     const { call } = await import('frappe-ui')
     const response = await call('portal_rrhh.api.modificaciones_rrhh.get_modificaciones_by_job_offer', {
       job_offer_name: jobOfferName
     })
-
-    console.log('📊 Respuesta de modificaciones:', response?.length || 0, 'registros')
 
     // Agregar las modificaciones con referencia al job offer
     const modificacionesWithJobOffer = (response || []).map(mod => ({
@@ -939,9 +902,8 @@ const loadModificacionesForSingleJobOffer = async (jobOfferName) => {
     }))
 
     modificacionesData.value.push(...modificacionesWithJobOffer)
-    console.log('✅ Modificaciones agregadas. Total en memoria:', modificacionesData.value.length)
   } catch (error) {
-    console.error('❌ Error cargando modificaciones:', error)
+    console.error('Error cargando modificaciones:', error)
   } finally {
     isLoadingModificaciones.value = false
   }
@@ -950,19 +912,14 @@ const loadModificacionesForSingleJobOffer = async (jobOfferName) => {
 // Función para obtener modificaciones de un job offer específico
 const getModificacionesForJobOffer = (jobOfferName) => {
   const modificaciones = modificacionesData.value.filter(mod => mod.job_offer_name === jobOfferName)
-  console.log(`🔍 Modificaciones para ${jobOfferName}:`, modificaciones.length)
   return modificaciones
 }
 
 // Función para alternar expansión de job offer
 const toggleJobOfferExpansion = (jobOfferName) => {
-  console.log('🔄 Toggle modificaciones para Job Offer:', jobOfferName)
-
   if (expandedJobOffers.value.has(jobOfferName)) {
-    console.log('📤 Colapsando modificaciones...')
     expandedJobOffers.value.delete(jobOfferName)
   } else {
-    console.log('📥 Expandiendo modificaciones...')
     expandedJobOffers.value.add(jobOfferName)
   }
 }
@@ -1165,17 +1122,8 @@ const filteredJobOffers = computed(() => {
 // Actualizar filteredEmployees cuando cambia el computed
 watch(filteredEmployeesComputed, (newValue) => {
   filteredEmployees.value = newValue
-  console.log('📊 Empleados filtrados actualizados:', newValue.length)
 }, { immediate: true })
 
-// Watcher para debug: ver cuando cambian los datos del resource
-watch(() => employees.data, (newData) => {
-  console.log('📥 Datos de empleados actualizados:', newData?.length || 0)
-  console.log('📥 Filtros activos:', {
-    provincia: searchFilters.value.provincia,
-    company: searchFilters.value.company
-  })
-}, { immediate: true })
 
 // Watcher para sincronizar los textos de búsqueda con los filtros
 watch(() => searchFilters.value.provincia, (newValue) => {
@@ -1194,11 +1142,6 @@ watch(() => searchFilters.value.company, (newValue) => {
 watch([() => searchFilters.value.provincia, () => searchFilters.value.company], ([newProvincia, newCompany], [oldProvincia, oldCompany]) => {
   // Solo recargar si realmente cambió el valor
   if (newProvincia !== oldProvincia || newCompany !== oldCompany) {
-    console.log('🔄 Watcher detectó cambio en filtros:', {
-      provincia: { old: oldProvincia, new: newProvincia },
-      company: { old: oldCompany, new: newCompany }
-    })
-    
     // Limpiar timeout anterior
     if (reloadTimeout) {
       clearTimeout(reloadTimeout)
@@ -1206,30 +1149,16 @@ watch([() => searchFilters.value.provincia, () => searchFilters.value.company], 
     
     // Recargar con un pequeño delay para evitar recargas múltiples
     reloadTimeout = setTimeout(() => {
-      console.log('🔄 Recargando empleados desde watcher...')
-      console.log('🔄 Estado actual de filtros:', {
-        provincia: searchFilters.value.provincia,
-        company: searchFilters.value.company
-      })
-      
       // Forzar recarga del resource
       if (employees) {
         // Intentar múltiples métodos de recarga
         if (typeof employees.reload === 'function') {
-          console.log('🔄 Usando employees.reload()')
           employees.reload()
         } else if (typeof employees.fetch === 'function') {
-          console.log('🔄 Usando employees.fetch()')
           employees.fetch()
         } else if (employees.submit) {
-          console.log('🔄 Usando employees.submit()')
           employees.submit()
-        } else {
-          console.error('⚠️ No se encontró método de recarga en employees')
-          console.log('🔍 Métodos disponibles en employees:', Object.keys(employees))
         }
-      } else {
-        console.error('⚠️ employees es null o undefined')
       }
     }, 150)
   }

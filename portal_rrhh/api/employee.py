@@ -1,63 +1,115 @@
 import frappe
 from frappe import _
 
+def filter_by_permissions(documents, doctype):
+    """Filtra documentos según los permisos del usuario"""
+    if not documents:
+        return []
+    
+    filtered = []
+    for doc in documents:
+        doc_name = doc.get('name') if isinstance(doc, dict) else doc
+        try:
+            # Verificar permisos de lectura usando frappe.get_doc con ignore_permissions=False
+            # Esto respeta automáticamente los permisos de usuario y roles
+            if frappe.has_permission(doctype, "read", doc_name if isinstance(doc_name, str) else doc):
+                filtered.append(doc)
+        except frappe.PermissionError:
+            # Si no tiene permisos, omitir el documento
+            continue
+        except Exception:
+            # Si hay algún error, verificar usando get_doc_permissions
+            try:
+                doc_obj = frappe.get_doc(doctype, doc_name) if isinstance(doc_name, str) else doc
+                perms = frappe.permissions.get_doc_permissions(doc_obj)
+                if perms.get("read"):
+                    filtered.append(doc)
+            except:
+                continue
+    
+    return filtered
+
 @frappe.whitelist()
 def get_employees(filters=None):
     """Get list of employees with essential fields and companies from Job Offers - Optimized version"""
-    Employee = frappe.qb.DocType("Employee")
-    JobOffer = frappe.qb.DocType("Job Offer")
-
     # Parse filters if provided
     if filters and isinstance(filters, str):
         import json
         filters = json.loads(filters)
+
+    # Usar frappe.get_list para respetar permisos automáticamente
+    filters_dict = {"status": "Active"}
     
-    # Debug: log filters received (solo valores importantes)
-    if filters:
-        filter_summary = {k: v for k, v in filters.items() if k in ['provincia', 'company', 'status']}
-        frappe.log_error(f"Filtros recibidos: {filter_summary}", "Employee API Debug")
-
-    # Build query with filters
-    query = (
-        frappe.qb.from_(Employee)
-        .select(
-            Employee.name,
-            Employee.employee_name,
-            Employee.company,
-            Employee.department,
-            Employee.designation,
-            Employee.reports_to,
-            Employee.status,
-            Employee.date_of_joining,
-            Employee.employee_number,
-            Employee.cell_number,
-            Employee.personal_email,
-            Employee.company_email,
-            Employee.custom_dninie,
-            Employee.custom_no_seguridad_social,
-            Employee.image
-        )
-        .where(Employee.status == "Active")
-    )
-
-    # Apply additional filters
+    # Aplicar filtros adicionales
     if filters:
         if filters.get('employee_name'):
-            # Handle LIKE filter for employee_name
             if isinstance(filters['employee_name'], list) and filters['employee_name'][0] == 'like':
-                query = query.where(Employee.employee_name.like(filters['employee_name'][1]))
+                filters_dict['employee_name'] = filters['employee_name']
             else:
-                query = query.where(Employee.employee_name == filters['employee_name'])
-
+                filters_dict['employee_name'] = filters['employee_name']
+        
         if filters.get('custom_dninie'):
-            # Handle LIKE filter for custom_dninie
             if isinstance(filters['custom_dninie'], list) and filters['custom_dninie'][0] == 'like':
-                query = query.where(Employee.custom_dninie.like(filters['custom_dninie'][1]))
+                filters_dict['custom_dninie'] = filters['custom_dninie']
             else:
-                query = query.where(Employee.custom_dninie == filters['custom_dninie'])
+                filters_dict['custom_dninie'] = filters['custom_dninie']
 
-    query = query.orderby(Employee.employee_name)
-    employees = query.run(as_dict=True)
+    # Verificar primero si el usuario tiene permisos de lectura en Employee
+    try:
+        meta = frappe.get_meta("Employee")
+        role_permissions = frappe.permissions.get_role_permissions(meta, user=frappe.session.user)
+        if not role_permissions.get("read") and not role_permissions.get("select"):
+            # No tiene permisos básicos de lectura, devolver lista vacía
+            return []
+    except Exception:
+        # Si hay error verificando permisos, continuar pero filtrar después
+        pass
+
+    # Obtener empleados usando frappe.get_list que respeta permisos automáticamente
+    employees = frappe.get_list(
+        "Employee",
+        fields=[
+            "name",
+            "employee_name",
+            "company",
+            "department",
+            "designation",
+            "reports_to",
+            "status",
+            "date_of_joining",
+            "employee_number",
+            "cell_number",
+            "personal_email",
+            "company_email",
+            "custom_dninie",
+            "custom_no_seguridad_social",
+            "image"
+        ],
+        filters=filters_dict,
+        order_by="employee_name asc"
+    )
+
+    # Filtrar adicionalmente por permisos específicos de cada documento
+    filtered_employees = []
+    for emp in employees:
+        try:
+            # Verificar permisos de lectura específicos para este empleado
+            if frappe.has_permission("Employee", "read", emp.get('name')):
+                filtered_employees.append(emp)
+        except (frappe.PermissionError, frappe.DoesNotExistError):
+            # Si no tiene permisos o el documento no existe, omitir
+            continue
+        except Exception:
+            # Si hay algún error, verificar usando get_doc_permissions
+            try:
+                emp_doc = frappe.get_doc("Employee", emp.get('name'))
+                perms = frappe.permissions.get_doc_permissions(emp_doc)
+                if perms.get("read"):
+                    filtered_employees.append(emp)
+            except:
+                continue
+    
+    employees = filtered_employees
 
     # Get all DNIs/NIEs for batch query
     employee_dnis = [emp.get('custom_dninie') for emp in employees if emp.get('custom_dninie')]
@@ -70,45 +122,32 @@ def get_employees(filters=None):
             employee['status_text'] = 'Sin DNI'
         return employees
 
-    # Single query to get all job offers for all employees
-    job_offers_query = (
-        frappe.qb.from_(JobOffer)
-        .select(
-            JobOffer.company,
-            JobOffer.workflow_state,
-            JobOffer.custom_dninie,
-            JobOffer.custom_provincia
-        )
-        .where(JobOffer.custom_dninie.isin(employee_dnis))
-    )
-
-    # Apply filters for provincia and company if provided
+    # Obtener job offers usando frappe.get_list para respetar permisos
+    job_offer_filters = {"custom_dninie": ["in", employee_dnis]}
+    
+    # Aplicar filtros para provincia y company si se proporcionan
     if filters:
         if filters.get('provincia'):
             provincia_filter = filters['provincia'].strip() if isinstance(filters['provincia'], str) else str(filters['provincia']).strip()
             if provincia_filter:
-                frappe.log_error(f"Filtro provincia: {provincia_filter[:50]}", "Employee API Debug")
-                # Como custom_provincia es un Link field, comparamos con el nombre exacto o LIKE
                 if isinstance(provincia_filter, list) and provincia_filter[0] == 'like':
-                    job_offers_query = job_offers_query.where(JobOffer.custom_provincia.like(provincia_filter[1]))
+                    job_offer_filters['custom_provincia'] = provincia_filter
                 else:
-                    # Buscar coincidencia exacta o parcial (el Link field almacena el nombre del documento)
-                    job_offers_query = job_offers_query.where(JobOffer.custom_provincia.like(f"%{provincia_filter}%"))
+                    job_offer_filters['custom_provincia'] = ["like", f"%{provincia_filter}%"]
         
         if filters.get('company'):
             company_filter = filters['company'].strip() if isinstance(filters['company'], str) else str(filters['company']).strip()
             if company_filter:
-                frappe.log_error(f"Filtro empresa: {company_filter[:50]}", "Employee API Debug")
                 if isinstance(company_filter, list) and company_filter[0] == 'like':
-                    job_offers_query = job_offers_query.where(JobOffer.company.like(company_filter[1]))
+                    job_offer_filters['company'] = company_filter
                 else:
-                    job_offers_query = job_offers_query.where(JobOffer.company.like(f"%{company_filter}%"))
+                    job_offer_filters['company'] = ["like", f"%{company_filter}%"]
 
-    all_job_offers = job_offers_query.run(as_dict=True)
-    
-    # Debug: log job offers found (solo conteo)
-    if filters and (filters.get('provincia') or filters.get('company')):
-        frappe.log_error(f"Job Offers con filtros: {len(all_job_offers)}", "Employee API Debug")
+    all_job_offers = frappe.get_list(
+        "Job Offer",
+        fields=["company", "workflow_state", "custom_dninie", "custom_provincia"],
+        filters=job_offer_filters
+    )
 
     # Group job offers by DNI/NIE for efficient lookup
     job_offers_by_dni = {}
@@ -125,7 +164,6 @@ def get_employees(filters=None):
     if has_job_offer_filters:
         # Get DNI/NIEs that have matching job offers
         matching_dnis = set([jo['custom_dninie'] for jo in all_job_offers if jo.get('custom_dninie')])
-        frappe.log_error(f"Filtros activos. JO: {len(all_job_offers)}, DNIs: {len(matching_dnis)}, Empleados antes: {len(employees)}", "Employee API Debug")
     
     # Process each employee with pre-loaded job offers
     filtered_employees = []
@@ -170,27 +208,18 @@ def get_employees(filters=None):
             employee['status_text'] = 'Sin hojas'
         
         filtered_employees.append(employee)
-    
-    # Debug: log final result
-    if has_job_offer_filters:
-        frappe.log_error(f"Empleados después de filtrar: {len(filtered_employees)}", "Employee API Debug")
 
     return filtered_employees
 
 @frappe.whitelist()
 def get_employee(name):
     """Get specific employee details"""
-    Employee = frappe.qb.DocType("Employee")
-
-    query = (
-        frappe.qb.from_(Employee)
-        .select("*")
-        .where(Employee.name == name)
-        .limit(1)
-    )
-
-    employee = query.run(as_dict=True)
-    if not len(employee):
+    # Usar frappe.get_doc que respeta permisos automáticamente
+    try:
+        employee = frappe.get_doc("Employee", name)
+        # Verificar permisos de lectura
+        if not frappe.has_permission("Employee", "read", employee):
+            frappe.throw(_("No tienes permisos para ver este empleado"), frappe.PermissionError)
+        return employee.as_dict()
+    except frappe.DoesNotExistError:
         frappe.throw(_("Employee not found"), frappe.DoesNotExistError)
-
-    return employee[0]

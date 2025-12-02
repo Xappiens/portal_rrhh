@@ -5,57 +5,53 @@ from frappe import _
 def get_job_offers_by_employee(employee_name):
     """Get job offers for a specific employee"""
     try:
-        # Primero obtener el DNI/NIE del empleado
-        Employee = frappe.qb.DocType("Employee")
-        employee_query = (
-            frappe.qb.from_(Employee)
-            .select(Employee.custom_dninie)
-            .where(Employee.name == employee_name)
-        )
-
-        employee_data = employee_query.run(as_dict=True)
-        if not employee_data:
+        # Verificar primero que el usuario tenga permisos para ver el empleado
+        try:
+            employee = frappe.get_doc("Employee", employee_name)
+            if not frappe.has_permission("Employee", "read", employee):
+                frappe.throw(_("No tienes permisos para ver este empleado"), frappe.PermissionError)
+        except frappe.DoesNotExistError:
             return []
-
-        employee_dni = employee_data[0].get('custom_dninie')
+        
+        employee_dni = employee.get('custom_dninie')
         if not employee_dni:
             return []
 
-        JobOffer = frappe.qb.DocType("Job Offer")
-
-        query = (
-            frappe.qb.from_(JobOffer)
-            .select(
-                JobOffer.name,
-                JobOffer.job_applicant,
-                JobOffer.applicant_name,
-                JobOffer.applicant_email,
-                JobOffer.status,
-                JobOffer.offer_date,
-                JobOffer.designation,
-                JobOffer.company,
-                JobOffer.creation,
-                JobOffer.modified,
-                JobOffer.custom_fecha_inicio,
-                JobOffer.custom_fecha_fin,
-                JobOffer.custom_tipo_de_contrato,
-                JobOffer.custom_estado_de_tramitacion,
-                JobOffer.custom_firmado,
-                JobOffer.custom_contrato,
-                JobOffer.custom_comun,
-                JobOffer.workflow_state,
-                JobOffer.curso,
-                JobOffer.expediente,
-                JobOffer.centro_formacion,
-                JobOffer.custom_provincia
-            )
-            .where(JobOffer.custom_dninie == employee_dni)
-            .orderby(JobOffer.creation, order=frappe.qb.desc)
-            .limit(20)  # Limitar resultados para mejor rendimiento
+        # Usar frappe.get_list para respetar permisos automáticamente
+        job_offers = frappe.get_list(
+            "Job Offer",
+            fields=[
+                "name",
+                "job_applicant",
+                "applicant_name",
+                "applicant_email",
+                "status",
+                "offer_date",
+                "designation",
+                "company",
+                "creation",
+                "modified",
+                "custom_fecha_inicio",
+                "custom_fecha_fin",
+                "custom_tipo_de_contrato",
+                "custom_estado_de_tramitacion",
+                "custom_firmado",
+                "custom_contrato",
+                "custom_comun",
+                "workflow_state",
+                "curso",
+                "expediente",
+                "centro_formacion",
+                "custom_provincia"
+            ],
+            filters={"custom_dninie": employee_dni},
+            order_by="creation desc",
+            limit_page_length=20
         )
-
-        job_offers = query.run(as_dict=True)
+        
         return job_offers
+    except frappe.PermissionError:
+        raise
     except Exception as e:
         frappe.log_error(f"Error en get_job_offers_by_employee: {str(e)}", "Job Offer API Error")
         return []
@@ -63,29 +59,24 @@ def get_job_offers_by_employee(employee_name):
 @frappe.whitelist()
 def get_job_offer(name):
     """Get specific job offer details"""
-    JobOffer = frappe.qb.DocType("Job Offer")
-
-    query = (
-        frappe.qb.from_(JobOffer)
-        .select("*")
-        .where(JobOffer.name == name)
-        .limit(1)
-    )
-
-    job_offer = query.run(as_dict=True)
-    if not len(job_offer):
+    # Usar frappe.get_doc que respeta permisos automáticamente
+    try:
+        job_offer = frappe.get_doc("Job Offer", name)
+        # Verificar permisos de lectura
+        if not frappe.has_permission("Job Offer", "read", job_offer):
+            frappe.throw(_("No tienes permisos para ver esta Job Offer"), frappe.PermissionError)
+        return job_offer.as_dict()
+    except frappe.DoesNotExistError:
         frappe.throw(_("Job Offer not found"), frappe.DoesNotExistError)
-
-    return job_offer[0]
 
 @frappe.whitelist()
 def get_contratacion_stats():
     """Get statistics for contratacion dashboard"""
-    JobOffer = frappe.qb.DocType("Job Offer")
-
-    # Get all job offers
-    query = frappe.qb.from_(JobOffer).select("*")
-    job_offers = query.run(as_dict=True)
+    # Usar frappe.get_list para respetar permisos automáticamente
+    job_offers = frappe.get_list(
+        "Job Offer",
+        fields=["name", "status", "custom_fecha_inicio", "custom_fecha_fin"]
+    )
 
     # Calculate current week dates
     from frappe.utils import getdate, get_first_day, get_last_day

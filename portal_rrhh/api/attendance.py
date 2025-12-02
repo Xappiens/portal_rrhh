@@ -94,12 +94,24 @@ def get_employee_attendance(employee, from_date=None, to_date=None):
         to_date: End date in YYYY-MM-DD format
     """
     try:
+        # Verificar primero que el usuario tenga permisos para ver el empleado
+        try:
+            employee_doc = frappe.get_doc("Employee", employee)
+            if not frappe.has_permission("Employee", "read", employee_doc):
+                frappe.throw(_("No tienes permisos para ver este empleado"), frappe.PermissionError)
+        except frappe.DoesNotExistError:
+            return {
+                "success": False,
+                "message": _("Employee not found")
+            }
+        
         if not from_date:
             from_date = getdate()
         if not to_date:
             to_date = getdate()
 
-        attendance_records = frappe.get_all("Attendance",
+        # Usar frappe.get_list que respeta permisos automáticamente
+        attendance_records = frappe.get_list("Attendance",
             filters={
                 "employee": employee,
                 "attendance_date": ["between", [from_date, to_date]]
@@ -129,13 +141,17 @@ def get_employee_info(employee):
         employee: Employee ID
     """
     try:
-        if not frappe.db.exists("Employee", employee):
+        # Usar frappe.get_doc que respeta permisos automáticamente
+        try:
+            employee_info = frappe.get_doc("Employee", employee)
+            # Verificar permisos de lectura
+            if not frappe.has_permission("Employee", "read", employee_info):
+                frappe.throw(_("No tienes permisos para ver este empleado"), frappe.PermissionError)
+        except frappe.DoesNotExistError:
             return {
                 "success": False,
                 "message": _("Employee not found")
             }
-
-        employee_info = frappe.get_doc("Employee", employee)
 
         return {
             "success": True,

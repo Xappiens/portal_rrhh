@@ -3,13 +3,24 @@
 # Script para compilar el frontend y actualizar las rutas en el HTML
 # Uso: ./build_and_update.sh
 
+set -e  # Salir si hay algún error
+
 echo "🚀 Iniciando proceso de build y actualización..."
 
 # Cambiar al directorio del frontend
 cd /home/frappe/frappe-bench/apps/portal_rrhh/frontend
 
-echo "📦 Ejecutando yarn build..."
-yarn build
+# Detectar si usar npm o yarn
+if command -v npm &> /dev/null; then
+    echo "📦 Ejecutando npm run build..."
+    npm run build
+elif command -v yarn &> /dev/null; then
+    echo "📦 Ejecutando yarn build..."
+    yarn build
+else
+    echo "❌ Error: No se encontró npm ni yarn"
+    exit 1
+fi
 
 if [ $? -eq 0 ]; then
     echo "✅ Build completado exitosamente"
@@ -41,7 +52,14 @@ echo "🔄 Actualizando portal_rrhh.html..."
 # Crear backup del archivo original
 cp www/portal_rrhh.html www/portal_rrhh.html.backup
 
+# Verificar que los archivos existen
+if [ -z "$INDEX_JS" ] || [ -z "$VENDOR_JS" ] || [ -z "$VENDOR_CSS" ] || [ -z "$INDEX_CSS" ]; then
+    echo "❌ Error: No se encontraron todos los archivos necesarios"
+    exit 1
+fi
+
 # Actualizar las rutas en el HTML
+echo "🔄 Actualizando referencias en portal_rrhh.html..."
 sed -i "s|src=\"/assets/portal_rrhh/frontend/assets/index\.[a-f0-9]*\.js\"|src=\"/assets/portal_rrhh/frontend/assets/$INDEX_JS\"|g" www/portal_rrhh.html
 sed -i "s|href=\"/assets/portal_rrhh/frontend/assets/vendor\.[a-f0-9]*\.js\"|href=\"/assets/portal_rrhh/frontend/assets/$VENDOR_JS\"|g" www/portal_rrhh.html
 sed -i "s|href=\"/assets/portal_rrhh/frontend/assets/vendor\.[a-f0-9]*\.css\"|href=\"/assets/portal_rrhh/frontend/assets/$VENDOR_CSS\"|g" www/portal_rrhh.html
