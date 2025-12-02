@@ -1,14 +1,14 @@
 <template>
-  <div class="flex-1 p-6 bg-gray-50">
-    <div class="mb-8 pb-6 border-b border-gray-200">
-      <div class="flex justify-between items-start">
-        <div>
-          <h2 class="text-2xl font-semibold text-gray-900 mb-2">🤖 Panel de Reclutamiento con IA</h2>
-          <p class="text-sm text-gray-600">Rastrea análisis de CV e información de reclutamiento</p>
+  <div class="flex-1 h-full p-4 sm:p-6 bg-gray-50 overflow-y-auto">
+    <div class="mb-6 sm:mb-8 pb-4 sm:pb-6 border-b border-gray-200">
+      <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
+        <div class="flex-1 min-w-0">
+          <h2 class="text-xl sm:text-2xl font-semibold text-gray-900 mb-2">🤖 Panel de Reclutamiento con IA</h2>
+          <p class="text-xs sm:text-sm text-gray-600">Rastrea análisis de CV e información de reclutamiento</p>
         </div>
-        <div class="flex items-center gap-3">
-          <span v-if="refreshInterval" class="text-xs text-gray-500">Actualización automática cada 30s</span>
-          <button @click="loadDashboardData" :disabled="loading" class="px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed">
+        <div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          <span v-if="refreshInterval" class="hidden sm:inline text-xs text-gray-500">Actualización automática cada 30s</span>
+          <button @click="loadDashboardData" :disabled="loading" class="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm sm:text-base">
             <span v-if="loading">🔄 Cargando...</span>
             <span v-else>🔄 Actualizar</span>
           </button>
@@ -17,12 +17,12 @@
     </div>
 
     <!-- Error Message -->
-    <div v-if="error" class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <strong class="text-red-800">⚠️ Error:</strong> 
-        <span class="text-red-700">{{ error }}</span>
+    <div v-if="error" class="mb-4 sm:mb-6 bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+      <div class="flex items-start sm:items-center gap-2 sm:gap-3 flex-1 min-w-0">
+        <strong class="text-red-800 text-xs sm:text-sm">⚠️ Error:</strong> 
+        <span class="text-red-700 text-xs sm:text-sm break-words">{{ error }}</span>
       </div>
-      <button @click="loadDashboardData" class="px-3 py-1 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700">Reintentar</button>
+      <button @click="loadDashboardData" class="px-3 py-1 bg-red-600 text-white rounded text-xs sm:text-sm font-semibold hover:bg-red-700 flex-shrink-0">Reintentar</button>
     </div>
 
     <!-- Loading State -->
@@ -34,52 +34,52 @@
     <!-- Dashboard Content -->
     <div v-else>
       <!-- Stats Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <div class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div class="bg-white rounded-lg shadow p-4 sm:p-6 hover:shadow-lg transition-shadow">
           <div class="flex items-center">
             <div class="flex-shrink-0">
-              <div class="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center shadow-md">
-                <span class="text-2xl">📊</span>
+              <div class="w-10 h-10 sm:w-12 sm:h-12 bg-blue-500 rounded-lg flex items-center justify-center shadow-md">
+                <span class="text-xl sm:text-2xl">📊</span>
               </div>
             </div>
-            <div class="ml-4">
-              <p class="text-sm font-medium text-gray-500">CVs Analizados</p>
-              <p class="text-3xl font-bold text-gray-900">{{ stats.cvsAnalyzed || 0 }}</p>
+            <div class="ml-3 sm:ml-4 flex-1 min-w-0">
+              <p class="text-xs sm:text-sm font-medium text-gray-500">CVs Analizados</p>
+              <p class="text-2xl sm:text-3xl font-bold text-gray-900">{{ stats.cvsAnalyzed || 0 }}</p>
               <p class="text-xs text-gray-500 mt-1">Total de análisis completados</p>
             </div>
           </div>
         </div>
 
         <div 
-          class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow cursor-pointer"
+          class="bg-white rounded-lg shadow p-4 sm:p-6 hover:shadow-lg transition-shadow cursor-pointer"
           @click="toggleReportsView"
           :class="showReports ? 'ring-2 ring-green-500' : ''"
         >
           <div class="flex items-center">
             <div class="flex-shrink-0">
-              <div class="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center shadow-md">
-                <span class="text-2xl">📄</span>
+              <div class="w-10 h-10 sm:w-12 sm:h-12 bg-green-500 rounded-lg flex items-center justify-center shadow-md">
+                <span class="text-xl sm:text-2xl">📄</span>
               </div>
             </div>
-            <div class="ml-4">
-              <p class="text-sm font-medium text-gray-500">Reportes Generados</p>
-              <p class="text-3xl font-bold text-gray-900">{{ stats.reportsGenerated || 0 }}</p>
+            <div class="ml-3 sm:ml-4 flex-1 min-w-0">
+              <p class="text-xs sm:text-sm font-medium text-gray-500">Reportes Generados</p>
+              <p class="text-2xl sm:text-3xl font-bold text-gray-900">{{ stats.reportsGenerated || 0 }}</p>
               <p class="text-xs text-gray-500 mt-1">Reportes de reclutamiento creados</p>
               <p v-if="showReports" class="text-xs text-green-600 mt-1 font-semibold">← Haz clic para ver reportes</p>
             </div>
           </div>
         </div>
 
-        <div class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+        <div class="bg-white rounded-lg shadow p-4 sm:p-6 hover:shadow-lg transition-shadow">
           <div class="flex items-center">
             <div class="flex-shrink-0">
-              <div class="w-12 h-12 bg-yellow-500 rounded-lg flex items-center justify-center shadow-md">
-                <span class="text-2xl">✅</span>
+              <div class="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-500 rounded-lg flex items-center justify-center shadow-md">
+                <span class="text-xl sm:text-2xl">✅</span>
               </div>
             </div>
-            <div class="ml-4">
-              <p class="text-sm font-medium text-gray-500">Tasa de Éxito</p>
-              <p class="text-3xl font-bold text-gray-900">{{ stats.successRate || 0 }}%</p>
+            <div class="ml-3 sm:ml-4 flex-1 min-w-0">
+              <p class="text-xs sm:text-sm font-medium text-gray-500">Tasa de Éxito</p>
+              <p class="text-2xl sm:text-3xl font-bold text-gray-900">{{ stats.successRate || 0 }}%</p>
               <p class="text-xs text-gray-500 mt-1">Tasa de finalización de análisis</p>
             </div>
           </div>
@@ -87,22 +87,22 @@
       </div>
 
       <!-- Recent Analyses/Reports Section -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
-          <div class="flex items-center gap-3">
-            <h3 class="text-lg font-semibold text-gray-900">
+      <div class="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-gray-200">
+          <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <h3 class="text-base sm:text-lg font-semibold text-gray-900">
               <span v-if="!showReports">📋 Análisis de CV Recientes</span>
               <span v-else>📄 Reportes Recientes</span>
             </h3>
             <button 
               v-if="showReports"
               @click="showReports = false"
-              class="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold"
+              class="px-2 sm:px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold"
             >
               ← Volver a Análisis
             </button>
           </div>
-          <span v-if="(showReports ? recentReports : recentAnalyses).length > 0" class="px-3 py-1 bg-blue-500 text-white rounded-full text-xs font-semibold">
+          <span v-if="(showReports ? recentReports : recentAnalyses).length > 0" class="px-2 sm:px-3 py-1 bg-blue-500 text-white rounded-full text-xs font-semibold">
             {{ (showReports ? recentReports : recentAnalyses).length }} {{ showReports ? 'reporte' : 'análisis' }}{{ (showReports ? recentReports : recentAnalyses).length === 1 ? '' : '' }}
           </span>
         </div>
@@ -120,30 +120,30 @@
           </div>
 
           <!-- Reports List -->
-          <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <div 
               v-for="(report, index) in recentReports" 
               :key="`report-${report.name}-${lastRefreshTime ? lastRefreshTime.getTime() : index}`" 
-              class="bg-gray-50 rounded-lg p-5 border-2 border-gray-200 hover:border-green-400 cursor-pointer transition-all hover:shadow-lg"
+              class="bg-gray-50 rounded-lg p-4 sm:p-5 border-2 border-gray-200 hover:border-green-400 cursor-pointer transition-all hover:shadow-lg"
               @click="viewReport(report)"
             >
-              <div class="flex items-center gap-4 mb-4">
-                <div class="w-14 h-14 rounded-lg bg-green-500 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0 shadow-md">
+              <div class="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-green-500 flex items-center justify-center text-white text-xl sm:text-2xl font-bold flex-shrink-0 shadow-md">
                   📄
                 </div>
                 <div class="flex-1 min-w-0">
-                  <h4 class="text-base font-semibold text-gray-900 truncate mb-1">{{ report.job_title || 'Posición Desconocida' }}</h4>
+                  <h4 class="text-sm sm:text-base font-semibold text-gray-900 truncate mb-1">{{ report.job_title || 'Posición Desconocida' }}</h4>
                   <p v-if="report.report_timestamp" class="text-xs text-gray-500 mt-1">
                     {{ formatDate(report.report_timestamp) }}
                   </p>
                 </div>
               </div>
-              <div class="flex justify-between items-center pt-4 border-t border-gray-200">
-                <div class="flex flex-col items-center px-4 py-2 rounded-lg font-semibold shadow-sm bg-green-500 text-white">
+              <div class="flex justify-between items-center pt-3 sm:pt-4 border-t border-gray-200">
+                <div class="flex flex-col items-center px-3 sm:px-4 py-2 rounded-lg font-semibold shadow-sm bg-green-500 text-white">
                   <span class="text-xs opacity-90 mb-1">Candidatos</span>
-                  <span class="text-xl">{{ report.total_candidates || 0 }}</span>
+                  <span class="text-lg sm:text-xl">{{ report.total_candidates || 0 }}</span>
                 </div>
-                <span class="text-sm text-green-600 font-semibold hover:text-green-800">Ver Reporte →</span>
+                <span class="text-xs sm:text-sm text-green-600 font-semibold hover:text-green-800">Ver Reporte →</span>
               </div>
             </div>
           </div>
@@ -162,31 +162,31 @@
           </div>
 
           <!-- Analyses List -->
-          <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <div 
               v-for="(analysis, index) in recentAnalyses" 
               :key="`analysis-${analysis.name}-${lastRefreshTime ? lastRefreshTime.getTime() : index}`" 
-              class="bg-gray-50 rounded-lg p-5 border-2 border-gray-200 hover:border-blue-400 cursor-pointer transition-all hover:shadow-lg"
+              class="bg-gray-50 rounded-lg p-4 sm:p-5 border-2 border-gray-200 hover:border-blue-400 cursor-pointer transition-all hover:shadow-lg"
               @click="viewAnalysis(analysis)"
             >
-              <div class="flex items-center gap-4 mb-4">
-                <div class="w-14 h-14 rounded-lg bg-blue-500 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0 shadow-md">
+              <div class="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-blue-500 flex items-center justify-center text-white text-lg sm:text-2xl font-bold flex-shrink-0 shadow-md">
                   {{ (analysis.candidate_name || 'U')[0].toUpperCase() }}
                 </div>
                 <div class="flex-1 min-w-0">
-                  <h4 class="text-base font-semibold text-gray-900 truncate mb-1">{{ analysis.candidate_name || 'Candidato Desconocido' }}</h4>
-                  <p class="text-sm text-gray-600 truncate">{{ analysis.job_title || 'Posición Desconocida' }}</p>
+                  <h4 class="text-sm sm:text-base font-semibold text-gray-900 truncate mb-1">{{ analysis.candidate_name || 'Candidato Desconocido' }}</h4>
+                  <p class="text-xs sm:text-sm text-gray-600 truncate">{{ analysis.job_title || 'Posición Desconocida' }}</p>
                   <p v-if="analysis.analysis_timestamp" class="text-xs text-gray-500 mt-1">
                     {{ formatDate(analysis.analysis_timestamp) }}
                   </p>
                 </div>
               </div>
-              <div class="flex justify-between items-center pt-4 border-t border-gray-200">
-                <div class="flex flex-col items-center px-4 py-2 rounded-lg font-semibold shadow-sm" :class="getScoreClass(analysis.overall_score) === 'high' ? 'bg-green-500 text-white' : getScoreClass(analysis.overall_score) === 'medium' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'">
+              <div class="flex justify-between items-center pt-3 sm:pt-4 border-t border-gray-200">
+                <div class="flex flex-col items-center px-3 sm:px-4 py-2 rounded-lg font-semibold shadow-sm" :class="getScoreClass(analysis.overall_score) === 'high' ? 'bg-green-500 text-white' : getScoreClass(analysis.overall_score) === 'medium' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'">
                   <span class="text-xs opacity-90 mb-1">Puntuación</span>
-                  <span class="text-xl">{{ analysis.overall_score || 0 }}%</span>
+                  <span class="text-lg sm:text-xl">{{ analysis.overall_score || 0 }}%</span>
                 </div>
-                <span class="text-sm text-blue-600 font-semibold hover:text-blue-800">Ver Detalles →</span>
+                <span class="text-xs sm:text-sm text-blue-600 font-semibold hover:text-blue-800">Ver Detalles →</span>
               </div>
             </div>
           </div>
