@@ -1,16 +1,17 @@
 import { sessionStore } from '@/stores/session'
+import { usersStore } from '@/stores/users'
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
   {
     path: '/',
-    redirect: { name: 'Dashboard' },
+    redirect: { name: 'Profile' },
     name: 'Home',
   },
   {
-    path: '/dashboard',
-    name: 'Dashboard',
-    component: () => import('@/pages/Dashboard.vue'),
+    path: '/profile',
+    name: 'Profile',
+    component: () => import('@/pages/Profile.vue'),
   },
   {
     path: '/contratacion',
@@ -42,7 +43,17 @@ const routes = [
     name: 'Reportes',
     component: () => import('@/pages/Reportes.vue'),
   },
-  
+  {
+    path: '/reporte-asistencia',
+    name: 'AttendanceReport',
+    component: () => import('@/pages/AttendanceReport.vue'),
+  },
+  {
+    path: '/timesheets',
+    name: 'Timesheets',
+    component: () => import('@/pages/Timesheets.vue'),
+  },
+
   {
     path: '/ai-dashboard',
     name: 'AIDashboard',
@@ -83,11 +94,31 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
-  const { isLoggedIn } = sessionStore()
+  const { users } = usersStore()
+  const session = sessionStore()
 
-  if (to.name === 'Login' && isLoggedIn) {
-    next({ name: 'Dashboard' })
-  } else if (to.name !== 'Login' && !isLoggedIn) {
+  // Intentar fijar usuario desde window.boot primero
+  if (!session.user && typeof window !== 'undefined' && window.boot && window.boot.user && window.boot.user !== 'Guest') {
+    session.user = window.boot.user
+  }
+
+  // Si no hay boot, leer cookie user_id
+  if (!session.user) {
+    const cookies = new URLSearchParams(document.cookie.split('; ').join('&'))
+    const cookieUser = cookies.get('user_id')
+    if (cookieUser && cookieUser !== 'Guest') {
+      session.user = cookieUser
+    }
+  }
+
+  // Si está logueado, asegurar que users esté listo
+  if (session.isLoggedIn) {
+    await users.promise
+  }
+
+  if (to.name === 'Login' && session.isLoggedIn) {
+    next({ name: 'Profile' })
+  } else if (to.name !== 'Login' && !session.isLoggedIn) {
     next({ name: 'Login' })
   } else if (to.matched.length === 0) {
     next({ name: 'Invalid Page' })

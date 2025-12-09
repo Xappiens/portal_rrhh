@@ -3,11 +3,12 @@ from frappe import _
 from frappe.utils import today, getdate
 
 @frappe.whitelist(allow_guest=False)
-def get_employees_list(filters=None, limit=20, offset=0):
+def get_employees_list(filters=None, limit=20, offset=0, search_term=None):
     """
     Get list of employees for the portal
     """
     try:
+        frappe.log_error(f"Searching employees: term={search_term}, user={frappe.session.user}", "Debug Employee Search")
         # Verificar primero si el usuario tiene permisos de lectura en Employee
         # Si no tiene permisos básicos, devolver lista vacía
         try:
@@ -24,10 +25,8 @@ def get_employees_list(filters=None, limit=20, offset=0):
             # Si hay error verificando permisos, continuar pero filtrar después
             pass
         
-        # Default filters
-        default_filters = {
-            "status": "Active"
-        }
+        # Default filters: no status restriction to allow active/inactive employees
+        default_filters = {}
 
         # Merge with provided filters
         if filters:
@@ -36,28 +35,49 @@ def get_employees_list(filters=None, limit=20, offset=0):
                 filters = json.loads(filters)
             default_filters.update(filters)
 
+        # Build OR filters for search
+        or_filters = None
+        if search_term:
+            or_filters = {
+                "employee_name": ["like", f"%{search_term}%"],
+                "personal_email": ["like", f"%{search_term}%"],
+                "company_email": ["like", f"%{search_term}%"],
+                "custom_dninie": ["like", f"%{search_term}%"],
+                "attendance_device_id": ["like", f"%{search_term}%"],
+                "name": ["like", f"%{search_term}%"],
+                "user_id": ["like", f"%{search_term}%"],
+                "first_name": ["like", f"%{search_term}%"],
+                "last_name": ["like", f"%{search_term}%"]
+            }
+
+        # Determinar el page_length: si hay búsqueda, traer todo el universo de coincidencias
+        page_length = None if search_term else limit
+
         # Usar frappe.get_list que respeta permisos automáticamente
         employees = frappe.get_list(
             "Employee",
             filters=default_filters,
+            or_filters=or_filters,
             fields=[
                 "name",
                 "employee_name",
-                "employee_number",
+                "first_name",
+                "last_name",
                 "department",
                 "designation",
-                "company",
-                "user_id",
                 "image",
                 "status",
                 "date_of_joining",
                 "cell_number",
                 "personal_email",
-                "company_email"
+                "company_email",
+                "custom_dninie",
+                "attendance_device_id"
             ],
-            limit_page_length=limit,
-            limit_start=offset,
-            order_by="employee_name asc"
+            limit_page_length=page_length,
+            limit_start=offset if page_length else 0,
+            order_by="employee_name asc",
+            ignore_permissions=True
         )
 
         # Filtrar adicionalmente por permisos específicos de cada documento
@@ -88,8 +108,10 @@ def get_employees_list(filters=None, limit=20, offset=0):
         total_employees = frappe.get_list(
             "Employee",
             filters=default_filters,
+            or_filters=or_filters,
             fields=["name"],
-            limit_page_length=None
+            limit_page_length=None,
+            ignore_permissions=True
         )
         
         # Filtrar el conteo total también por permisos
@@ -125,6 +147,7 @@ def get_employees_list(filters=None, limit=20, offset=0):
             if employee.get("date_of_joining"):
                 employee["date_of_joining_formatted"] = frappe.utils.formatdate(employee["date_of_joining"])
 
+        frappe.log_error(f"Search Result: found={len(employees)}, total={total_count}", "Debug Employee Search")
         return {
             "employees": employees,
             "total_count": total_count,
@@ -178,22 +201,23 @@ def get_rrhh_dashboard_stats():
         }
         
         # 1. Empleados sin datos personales importantes
-        # Usar frappe.get_list para respetar permisos automáticamente
-        employees = frappe.get_list(
-            "Employee",
-            filters={"status": "Active"},
-            fields=[
-                "name",
-                "employee_name",
-                "custom_dninie",
-                "cell_number",
-                "personal_email",
-                "company_email",
-                "custom_no_seguridad_social",
-                "department",
-                "designation"
-            ]
-        )
+        employees = []
+        if frappe.has_permission("Employee", "read"):
+            employees = frappe.get_list(
+                "Employee",
+                filters={"status": "Active"},
+                fields=[
+                    "name",
+                    "employee_name",
+                    "custom_dninie",
+                    "cell_number",
+                    "personal_email",
+                    "company_email",
+                    "custom_no_seguridad_social",
+                    "department",
+                    "designation"
+                ]
+            )
         
         stats["summary"]["total_employees"] = len(employees)
         
@@ -221,23 +245,28 @@ def get_rrhh_dashboard_stats():
         stats["summary"]["employees_missing_data_count"] = len(stats["employees_missing_data"])
         
         # 2. Job Offers con fecha fin vencida pero workflow_state = "Alta"
-        # Usar frappe.get_list para respetar permisos automáticamente
-        job_offers = frappe.get_list(
-            "Job Offer",
-            filters={
-                "docstatus": 1,
-                "workflow_state": "Alta"
-            },
-            fields=[
-                "name",
-                "applicant_name",
-                "custom_dninie",
-                "custom_fecha_fin",
-                "workflow_state",
-                "designation",
-                "company"
-            ]
-        )
+        # 2. Job Offers con fecha fin vencida pero workflow_state = "Alta"
+        job_offers = []
+        try:
+            if frappe.has_permission("Job Offer", "read"):
+                job_offers = frappe.get_list(
+                    "Job Offer",
+                    filters={
+                        "docstatus": 1,
+                        "workflow_state": "Alta"
+                    },
+                    fields=[
+                        "name",
+                        "applicant_name",
+                        "custom_dninie",
+                        "custom_fecha_fin",
+                        "workflow_state",
+                        "designation",
+                        "company"
+                    ]
+                )
+        except frappe.PermissionError:
+            job_offers = []
         
         for jo in job_offers:
             if jo.get("custom_fecha_fin"):
@@ -267,24 +296,28 @@ def get_rrhh_dashboard_stats():
         stats["summary"]["job_offers_expired_active_count"] = len(stats["job_offers_expired_active"])
         
         # 3. Modificaciones RRHH con fecha fin vencida pero workflow_state = "Alta"
-        # Usar frappe.get_list para respetar permisos automáticamente
-        modificaciones = frappe.get_list(
-            "Modificaciones RRHH",
-            filters={
-                "docstatus": 1,
-                "workflow_state": "Alta"
-            },
-            fields=[
-                "name",
-                "employee",
-                "end_date",
-                "workflow_state",
-                "designation",
-                "company",
-                "tipo_actualizacion",
-                "job_offer"
-            ]
-        )
+        modificaciones = []
+        try:
+            if frappe.has_permission("Modificaciones RRHH", "read"):
+                modificaciones = frappe.get_list(
+                    "Modificaciones RRHH",
+                    filters={
+                        "docstatus": 1,
+                        "workflow_state": "Alta"
+                    },
+                    fields=[
+                        "name",
+                        "employee",
+                        "end_date",
+                        "workflow_state",
+                        "designation",
+                        "company",
+                        "tipo_actualizacion",
+                        "job_offer"
+                    ]
+                )
+        except frappe.PermissionError:
+            modificaciones = []
         
         for mod in modificaciones:
             if mod.get("end_date"):
@@ -314,28 +347,37 @@ def get_rrhh_dashboard_stats():
         stats["summary"]["modificaciones_expired_active_count"] = len(stats["modificaciones_expired_active"])
         
         # 4. Job Offers en "Baja" pero con Modificaciones RRHH relacionadas en "Alta"
-        # Usar frappe.get_list para respetar permisos automáticamente
-        job_offers_baja = frappe.get_list(
-            "Job Offer",
-            filters={
-                "docstatus": 1,
-                "workflow_state": "Baja"
-            },
-            fields=["name", "applicant_name", "custom_dninie", "designation", "company"]
-        )
+        # 4. Job Offers en "Baja" pero con Modificaciones RRHH relacionadas en "Alta"
+        job_offers_baja = []
+        try:
+            if frappe.has_permission("Job Offer", "read"):
+                job_offers_baja = frappe.get_list(
+                    "Job Offer",
+                    filters={
+                        "docstatus": 1,
+                        "workflow_state": "Baja"
+                    },
+                    fields=["name", "applicant_name", "custom_dninie", "designation", "company"]
+                )
+        except frappe.PermissionError:
+            job_offers_baja = []
         
         for jo_baja in job_offers_baja:
             # Buscar modificaciones RRHH relacionadas que estén en "Alta"
-            # Usar frappe.get_list para respetar permisos automáticamente
-            modificaciones_alta = frappe.get_list(
-                "Modificaciones RRHH",
-                filters={
-                    "docstatus": 1,
-                    "workflow_state": "Alta",
-                    "job_offer": jo_baja.name
-                },
-                fields=["name", "employee", "tipo_actualizacion", "start_date", "end_date"]
-            )
+            modificaciones_alta = []
+            try:
+                if frappe.has_permission("Modificaciones RRHH", "read"):
+                    modificaciones_alta = frappe.get_list(
+                        "Modificaciones RRHH",
+                        filters={
+                            "docstatus": 1,
+                            "workflow_state": "Alta",
+                            "job_offer": jo_baja.name
+                        },
+                        fields=["name", "employee", "tipo_actualizacion", "start_date", "end_date"]
+                    )
+            except frappe.PermissionError:
+                modificaciones_alta = []
             
             if modificaciones_alta:
                 employee_name = None

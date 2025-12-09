@@ -223,3 +223,13 @@ def get_employee(name):
         return employee.as_dict()
     except frappe.DoesNotExistError:
         frappe.throw(_("Employee not found"), frappe.DoesNotExistError)
+
+@frappe.whitelist()
+def get_current_employee():
+    """Get employee details for the current session user"""
+    employee = frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "name")
+    
+    if not employee:
+        return None
+        
+    return get_employee(employee)

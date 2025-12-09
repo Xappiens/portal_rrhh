@@ -20,6 +20,8 @@ if (typeof window !== 'undefined') {
       '/portal-rrhh/solicitudes': 'solicitudes',
       '/portal-rrhh/evaluaciones': 'evaluaciones',
       '/portal-rrhh/reportes': 'reportes',
+      '/portal-rrhh/reportes': 'reportes',
+      '/portal-rrhh/timesheets': 'timesheets',
       '/portal-rrhh/ai-dashboard': 'ai-dashboard',
       '/portal-rrhh/cv-analysis': 'cv-analysis'
     };
@@ -40,7 +42,7 @@ if (typeof window !== 'undefined') {
   }
 
   // Handle browser back/forward buttons
-  window.addEventListener('popstate', function(event) {
+  window.addEventListener('popstate', function (event) {
     initSPARouting();
     // Let Vue Router handle the navigation
     if (window.router) {
@@ -49,7 +51,7 @@ if (typeof window !== 'undefined') {
   });
 
   // Handle page refresh
-  window.addEventListener('beforeunload', function(event) {
+  window.addEventListener('beforeunload', function (event) {
     // Save current route to sessionStorage
     if (window.router) {
       sessionStorage.setItem('lastRoute', window.router.currentRoute.value.path);
@@ -57,7 +59,7 @@ if (typeof window !== 'undefined') {
   });
 
   // Initialize routing on page load
-  window.addEventListener('load', function(event) {
+  window.addEventListener('load', function (event) {
     initSPARouting();
 
     // Restore route from sessionStorage if available

@@ -308,13 +308,11 @@
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Fecha de Ingreso
                 </th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Acciones
-                </th>
+
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-if="loading" class="text-center">
+              <tr v-if="loading && empleados.length === 0" class="text-center">
                 <td colspan="6" class="px-6 py-4">
                   <div class="flex items-center justify-center">
                     <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
@@ -322,12 +320,12 @@
                   </div>
                 </td>
               </tr>
-              <tr v-else-if="filteredEmpleados.length === 0" class="text-center">
+              <tr v-else-if="empleados.length === 0" class="text-center">
                 <td colspan="6" class="px-6 py-4 text-gray-500">
                   No se encontraron empleados
                 </td>
               </tr>
-              <tr v-else v-for="empleado in filteredEmpleados" :key="empleado.id" class="hover:bg-gray-50">
+              <tr v-else v-for="empleado in empleados" :key="empleado.id" class="hover:bg-gray-50">
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex items-center">
                     <div class="flex-shrink-0 h-10 w-10">
@@ -359,22 +357,27 @@
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {{ empleado.fechaIngreso }}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div class="flex items-center justify-end space-x-2">
-                    <Button variant="ghost" size="sm" theme="blue">
-                      <FeatherIcon name="edit" class="h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" theme="gray">
-                      <FeatherIcon name="eye" class="h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" theme="red">
-                      <FeatherIcon name="trash-2" class="h-4" />
-                    </Button>
-                  </div>
-                </td>
+
               </tr>
             </tbody>
           </table>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+          <Button @click="prevPage" :disabled="loading || offset === 0" variant="outline">
+            <template #prefix>
+              <FeatherIcon name="chevron-left" class="h-4" />
+            </template>
+            Anterior
+          </Button>
+          <span class="text-sm text-gray-500">
+            Página {{ currentPage }}
+          </span>
+          <Button @click="nextPage" :disabled="loading || !hasMore" variant="outline">
+            Siguiente
+            <template #suffix>
+              <FeatherIcon name="chevron-right" class="h-4" />
+            </template>
+          </Button>
         </div>
       </div>
     </div>
@@ -389,6 +392,9 @@ const departamentos = ref([]) // Inicializado como array vacío
 const loading = ref(false)
 const searchQuery = ref('')
 const selectedDepartment = ref('')
+const offset = ref(0)
+const hasMore = ref(false)
+const limit = 6
 
 // Dashboard stats
 const dashboardStats = ref({
@@ -446,19 +452,38 @@ const loadDashboardStats = async () => {
 }
 
 // Load employees data
-const loadEmployees = async () => {
+// Load employees data
+const loadEmployees = async (direction = 'init') => {
+  let newOffset = offset.value
+
+  if (direction === 'next') {
+    newOffset += limit
+  } else if (direction === 'prev') {
+    newOffset = Math.max(0, newOffset - limit)
+  } else if (direction === 'init') {
+    newOffset = 0
+  }
+
   loading.value = true
+  
+  const filters = {
+    status: 'Active'
+  }
+  
+  if (selectedDepartment.value) {
+    filters.department = selectedDepartment.value
+  }
+
   try {
     const result = await call('portal_rrhh.portal_rrhh.employee_data.get_employees_list', {
-      filters: {
-        status: 'Active'
-      },
-      limit: 50,
-      offset: 0
+      filters: filters,
+      limit: limit,
+      offset: newOffset,
+      search_term: searchQuery.value
     })
 
     if (result && result.employees) {
-      empleados.value = result.employees.map(emp => ({
+      const newEmployees = result.employees.map(emp => ({
         id: emp.name,
         nombre: emp.employee_name,
         email: emp.email,
@@ -468,6 +493,12 @@ const loadEmployees = async () => {
         fechaIngreso: emp.date_of_joining_formatted || 'N/A',
         avatar: emp.avatar
       }))
+      
+      // Always replace employees list
+      empleados.value = newEmployees
+      
+      hasMore.value = result.has_more
+      offset.value = newOffset
     }
   } catch (error) {
     console.error('Error loading employees:', error)
@@ -475,6 +506,18 @@ const loadEmployees = async () => {
     loading.value = false
   }
 }
+
+const nextPage = () => {
+  loadEmployees('next')
+}
+
+const prevPage = () => {
+  loadEmployees('prev')
+}
+
+const currentPage = computed(() => {
+  return Math.floor(offset.value / limit) + 1
+})
 
 // Load departments
 const loadDepartments = async () => {
@@ -489,25 +532,17 @@ const loadDepartments = async () => {
   }
 }
 
-// Filter employees
-const filteredEmpleados = computed(() => {
-  let filtered = empleados.value
+// Watch for filter changes
+import { watch } from 'vue'
+import { debounce } from 'frappe-ui'
 
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(emp =>
-      emp.nombre.toLowerCase().includes(query) ||
-      emp.email.toLowerCase().includes(query) ||
-      emp.departamento.toLowerCase().includes(query)
-    )
-  }
-
-  if (selectedDepartment.value) {
-    filtered = filtered.filter(emp => emp.departamento === selectedDepartment.value)
-  }
-
-  return filtered
+watch(selectedDepartment, () => {
+  loadEmployees('init')
 })
+
+watch(searchQuery, debounce(() => {
+  loadEmployees('init')
+}, 300))
 
 onMounted(() => {
   loadEmployees()

@@ -189,7 +189,7 @@ website_route_rules = [
 
 # Request Events
 # ----------------
-# before_request = ["portal_rrhh.utils.before_request"]
+before_request = ["portal_rrhh.utils.before_request"]
 # after_request = ["portal_rrhh.utils.after_request"]
 
 # Job Events

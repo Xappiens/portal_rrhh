@@ -24,7 +24,7 @@
             Portal RRHH
           </div>
           <div class="mt-1 text-sm leading-none text-gray-700">
-            Admin Usuario
+            {{ usersStore().getUser('sessionUser').full_name }}
           </div>
         </div>
         <div
@@ -50,6 +50,8 @@
 import { Dropdown, FeatherIcon } from 'frappe-ui'
 import { computed, ref } from 'vue'
 import PortalRRHHLogo from '@/components/Icons/PortalRRHHLogo.vue'
+import { sessionStore } from '@/stores/session'
+import { usersStore } from '@/stores/users'
 
 const props = defineProps({
   isCollapsed: {
@@ -58,6 +60,8 @@ const props = defineProps({
   },
 })
 
+    const session = sessionStore()
+    
     let dropdownOptions = ref([
       {
         group: 'Gestionar',
@@ -71,12 +75,7 @@ const props = defineProps({
           {
             icon: 'life-buoy',
             label: computed(() => 'Soporte'),
-            onClick: () => window.open('https://frappe.io/support', '_blank'),
-          },
-          {
-            icon: 'book-open',
-            label: computed(() => 'Documentación'),
-            onClick: () => window.open('https://docs.frappe.io', '_blank'),
+            onClick: () => window.location.replace('/helpdesk'),
           },
         ],
       },
@@ -87,7 +86,9 @@ const props = defineProps({
           {
             icon: 'log-out',
             label: computed(() => 'Cerrar Sesión'),
-            onClick: () => alert('Cerrando sesión...'),
+            onClick: () => {
+              session.logout.submit()
+            },
           },
         ],
       },

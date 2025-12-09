@@ -53,7 +53,7 @@ def get_context_for_dev():
 
 
 def get_boot():
-    return frappe._dict(
+    boot = frappe._dict(
         {
             "frappe_version": frappe.__version__,
             "default_route": get_default_route(),
@@ -61,6 +61,16 @@ def get_boot():
             "read_only_mode": frappe.flags.read_only,
         }
     )
+    
+    # Agregar información del usuario si está logueado
+    if frappe.session.user != "Guest":
+        boot.user = frappe.session.user
+        boot.user_info = {
+            "name": frappe.session.user,
+            "full_name": frappe.utils.get_fullname(frappe.session.user),
+        }
+    
+    return boot
 
 
 def get_default_route():

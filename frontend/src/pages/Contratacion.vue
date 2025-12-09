@@ -211,6 +211,14 @@
                     <p class="text-xs text-gray-500 truncate">
                       {{ selectedEmployee.designation || 'Sin puesto' }}
                     </p>
+                    <a
+                      v-if="selectedEmployee.name"
+                      @click="openFormInNewTab('Employee', selectedEmployee.name, $event)"
+                      class="text-xs text-blue-600 hover:text-blue-800 hover:underline font-mono cursor-pointer inline-block mt-1"
+                      title="Ver detalle del empleado"
+                    >
+                      ID: {{ selectedEmployee.name }}
+                    </a>
                     <div v-if="selectedEmployee.companies && selectedEmployee.companies.length > 0" class="text-xs text-gray-600">
                       <div class="font-medium text-gray-700 mb-1">{{ selectedEmployee.status_text }}</div>
                       <div v-for="company in selectedEmployee.companies" :key="company" class="truncate">
@@ -275,6 +283,14 @@
                     <p class="text-xs text-gray-500 truncate">
                       {{ employee.designation || 'Sin puesto' }}
                     </p>
+                    <a
+                      v-if="employee.name"
+                      @click="openFormInNewTab('Employee', employee.name, $event)"
+                      class="text-xs text-blue-600 hover:text-blue-800 hover:underline font-mono cursor-pointer inline-block mt-1"
+                      title="Ver detalle del empleado"
+                    >
+                      ID: {{ employee.name }}
+                    </a>
                     <div v-if="employee.companies && employee.companies.length > 0" class="text-xs text-gray-600">
                       <div class="font-medium text-gray-700 mb-1">{{ employee.status_text }}</div>
                       <div v-for="company in employee.companies" :key="company" class="truncate">
@@ -355,7 +371,15 @@
                   <div class="flex items-center space-x-3 mb-3">
                     <div class="flex-1">
                       <h4 class="text-base font-semibold text-gray-900">{{ jobOffer.designation || 'Sin título' }}</h4>
-                      <p class="text-sm text-gray-500 font-mono">ID: {{ jobOffer.name }}</p>
+                      <a
+                        v-if="jobOffer.name"
+                        @click="openFormInNewTab('Job Offer', jobOffer.name, $event)"
+                        class="text-sm text-blue-600 hover:text-blue-800 hover:underline font-mono cursor-pointer inline-block"
+                        title="Ver detalle de la hoja de contratación"
+                      >
+                        ID: {{ jobOffer.name }}
+                      </a>
+                      <p v-else class="text-sm text-gray-500 font-mono">ID: Sin ID</p>
                     </div>
                     <div
                       v-if="jobOffer.workflow_state === 'Alta'"
@@ -482,7 +506,15 @@
                       <div class="flex items-start justify-between mb-2">
                         <div class="flex-1">
                           <h6 class="text-sm font-semibold text-gray-900">{{ modificacion.tipo_actualizacion || 'Modificación' }}</h6>
-                          <p class="text-xs text-gray-500 font-mono">ID: {{ modificacion.name }}</p>
+                          <a
+                            v-if="modificacion.name"
+                            @click="openFormInNewTab('Modificaciones RRHH', modificacion.name, $event)"
+                            class="text-xs text-blue-600 hover:text-blue-800 hover:underline font-mono cursor-pointer inline-block"
+                            title="Ver detalle de la modificación RRHH"
+                          >
+                            ID: {{ modificacion.name }}
+                          </a>
+                          <p v-else class="text-xs text-gray-500 font-mono">ID: Sin ID</p>
                         </div>
                         <div
                           v-if="modificacion.workflow_state === 'Alta'"
@@ -985,6 +1017,23 @@ const getInitials = (name) => {
     return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase()
   }
   return name.charAt(0).toUpperCase()
+}
+
+// Función para generar URL de formulario de Frappe
+const getFormUrl = (doctype, docname) => {
+  if (!docname) return '#'
+  // Convertir doctype a slug (reemplazar espacios con guiones y convertir a minúsculas)
+  const doctypeSlug = doctype.toLowerCase().replace(/\s+/g, '-')
+  return `/app/${doctypeSlug}/${encodeURIComponent(docname)}`
+}
+
+// Función para abrir formulario en nueva pestaña
+const openFormInNewTab = (doctype, docname, event) => {
+  if (event) {
+    event.stopPropagation()
+  }
+  const url = getFormUrl(doctype, docname)
+  window.open(url, '_blank')
 }
 
 // Función para formatear fechas

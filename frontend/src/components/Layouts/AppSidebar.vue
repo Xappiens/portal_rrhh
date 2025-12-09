@@ -102,6 +102,7 @@ import Section from '@/components/Section.vue'
 import UserDropdown from '@/components/UserDropdown.vue'
 import SidebarLink from '@/components/SidebarLink.vue'
 import NotificationsIcon from '@/components/Icons/NotificationsIcon.vue'
+import ProfileIcon from '@/components/Icons/ProfileIcon.vue'
 import DashboardIcon from '@/components/Icons/DashboardIcon.vue'
 import EmpleadosIcon from '@/components/Icons/EmpleadosIcon.vue'
 import VacantesIcon from '@/components/Icons/VacantesIcon.vue'
@@ -113,88 +114,69 @@ import ConfiguracionIcon from '@/components/Icons/ConfiguracionIcon.vue'
 import AIDashboardIcon from '@/components/Icons/AIDashboardIcon.vue'
 import CVAnalysisIcon from '@/components/Icons/CVAnalysisIcon.vue'
 import RecruitmentReportIcon from '@/components/Icons/RecruitmentReportIcon.vue'
-import { FeatherIcon, Badge } from 'frappe-ui'
+import TimesheetsIcon from '@/components/Icons/TimesheetsIcon.vue'
+import { FeatherIcon, Badge, createResource } from 'frappe-ui'
 import { useStorage } from '@vueuse/core'
 import { computed } from 'vue'
 
 const isSidebarCollapsed = useStorage('isSidebarCollapsed', false)
 
-const links = [
-  {
-    label: 'Panel Principal',
-    icon: DashboardIcon,
-    to: 'Dashboard',
-  },
-  {
-    label: 'Contratación',
-    icon: VacantesIcon,
-    to: 'Contratacion',
-  },
-  {
-    label: 'Empleados',
-    icon: EmpleadosIcon,
-    to: 'Empleados',
-  },
-  {
-    label: 'Vacantes',
-    icon: VacantesIcon,
-    to: 'Vacantes',
-  },
-  {
-    label: 'Solicitudes',
-    icon: SolicitudesIcon,
-    to: 'Solicitudes',
-  },
-  {
-    label: 'Evaluaciones',
-    icon: EvaluacionesIcon,
-    to: 'Evaluaciones',
-  },
-  {
-    label: 'Reportes',
-    icon: ReportesIcon,
-    to: 'Reportes',
-  },
-  {
-  label: 'Panel de IA',
-  icon: AIDashboardIcon,
-  to: 'AIDashboard',
-  },
-  {
-  label: 'Análisis de CV',
-  icon: CVAnalysisIcon,
-  to: 'CVAnalysis',
-  },
-  {
-    label: 'Reportes de Reclutamiento',
-    icon: RecruitmentReportIcon,
-    to: 'RecruitmentReports',
-  }
-]
+// Mapa de iconos por nombre de ruta (route name del router)
+const iconMap = {
+  Profile: ProfileIcon,
+  Contratacion: VacantesIcon,
+  Empleados: EmpleadosIcon,
+  Timesheets: TimesheetsIcon,
+  Vacantes: VacantesIcon,
+  Solicitudes: SolicitudesIcon,
+  Evaluaciones: EvaluacionesIcon,
+  Reportes: ReportesIcon,
+  AIDashboard: AIDashboardIcon,
+  CVAnalysis: CVAnalysisIcon,
+  RecruitmentReports: RecruitmentReportIcon,
+  AttendanceReport: ReportesIcon,
+  Departamentos: DepartamentosIcon,
+  Configuracion: ConfiguracionIcon,
+}
+
+const sidebarItems = createResource({
+  url: 'portal_rrhh.api.sidebar.get_sidebar_items',
+  auto: true,
+})
+
+const configSet = new Set(['AttendanceReport', 'Departamentos', 'Configuracion'])
 
 const allViews = computed(() => {
+  const items = sidebarItems.data || []
+
+  const main = []
+  const config = []
+
+  for (const item of items) {
+    const icon = iconMap[item.path] || item.icon || 'circle'
+    const link = {
+      label: item.title,
+      icon,
+      to: item.path, // aquí usamos el nombre de ruta (router name)
+    }
+    if (configSet.has(item.path)) {
+      config.push(link)
+    } else {
+      main.push(link)
+    }
+  }
+
   return [
     {
       name: 'Todas las Vistas',
       hideLabel: true,
       opened: true,
-      views: links,
+      views: main,
     },
     {
       name: 'Configuración',
       opened: true,
-      views: [
-        {
-          label: 'Departamentos',
-          icon: DepartamentosIcon,
-          to: 'Departamentos',
-        },
-        {
-          label: 'Configuración General',
-          icon: ConfiguracionIcon,
-          to: 'Configuracion',
-        },
-      ],
+      views: config,
     },
   ]
 })
