@@ -1,0 +1,133 @@
+{
+    "actions": [],
+    "allow_import": 1,
+    "allow_rename": 1,
+    "autoname": "field:title",
+    "creation": "2025-12-09 00:00:00.000000",
+    "default_view": "List",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "field_order": [
+        "title",
+        "path",
+        "app_module",
+        "icon",
+        "order",
+        "enabled",
+        "is_public",
+        "requires_auth",
+        "feature_flag",
+        "parent_item",
+        "roles",
+        "description"
+    ],
+    "fields": [
+        {
+            "fieldname": "title",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Title",
+            "reqd": 1
+        },
+        {
+            "fieldname": "path",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Path",
+            "reqd": 1,
+            "search_index": 1
+        },
+        {
+            "fieldname": "app_module",
+            "fieldtype": "Link",
+            "label": "App / Module",
+            "options": "Module Def",
+            "reqd": 1
+        },
+        {
+            "fieldname": "icon",
+            "fieldtype": "Select",
+            "label": "Icon",
+            "options": "activity\nairplay\nalert-circle\nalert-octagon\nalert-triangle\nalign-center\nalign-justify\nalign-left\nalign-right\nanchor\naperture\narchive\narrow-down\narrow-down-circle\narrow-down-left\narrow-down-right\narrow-left\narrow-left-circle\narrow-right\narrow-right-circle\narrow-up\narrow-up-circle\narrow-up-left\narrow-up-right\nat-sign\naward\nbar-chart\nbar-chart-2\nbattery\nbattery-charging\nbell\nbell-off\nbluetooth\nbold\nbook\nbook-open\nbookmark\nbox\nbriefcase\ncalendar\ncamera\ncamera-off\ncast\ncheck\ncheck-circle\ncheck-square\nchevron-down\nchevron-left\nchevron-right\nchevron-up\nchevrons-down\nchevrons-left\nchevrons-right\nchevrons-up\nchrome\ncircle\nclipboard\nclock\ncloud\ncloud-drizzle\ncloud-lightning\ncloud-off\ncloud-rain\ncloud-snow\ncode\ncodepen\ncodesandbox\ncoffee\ncolumns\ncommand\ncompass\ncopy\ncorner-down-left\ncorner-down-right\ncorner-left-down\ncorner-left-up\ncorner-right-down\ncorner-right-up\ncorner-up-left\ncorner-up-right\ncpu\ncredit-card\ncrop\ncrosshair\ndatabase\ndelete\ndisc\ndivide\ndivide-circle\ndivide-square\ndollar-sign\ndownload\ndownload-cloud\ndrizzle\ndroplet\nedit\nedit-2\nedit-3\nexternal-link\neye\neye-off\nfacebook\nfast-forward\nfeather\nfigma\nfile\nfile-minus\nfile-plus\nfile-text\nfilm\nfilter\nflag\nfolder\nfolder-minus\nfolder-plus\nframer\nfrown\ngift\ngit-branch\ngit-commit\ngit-merge\ngit-pull-request\ngithub\ngitlab\nglobe\ngrid\nhard-drive\nhash\nheadphones\nheart\nhelp-circle\nhexagon\nhome\nimage\ninbox\ninfo\ninstagram\nitalic\nkey\nlayers\nlayout\nlife-buoy\nlink\nlink-2\nlinkedin\nlist\nloader\nlock\nlog-in\nlog-out\nmail\nmap\nmap-pin\nmaximize\nmaximize-2\nmeh\nmenu\nmessage-circle\nmessage-square\nmic\nmic-off\nminimize\nminimize-2\nminus\nminus-circle\nminus-square\nmonitor\nmoon\nmore-horizontal\nmore-vertical\nmouse-pointer\nmove\nmusic\nnavigation\nnavigation-2\noctagon\npackage\npaperclip\npause\npause-circle\npen-tool\npercent\nphone\nphone-call\nphone-forwarded\nphone-incoming\nphone-missed\nphone-off\nphone-outgoing\npie-chart\nplay\nplay-circle\nplus\nplus-circle\nplus-square\npocket\npower\nprinter\nradio\nrefresh-ccw\nrefresh-cw\nrepeat\nrewind\nrotate-ccw\nrotate-cw\nrss\nsave\nscissors\nsearch\nsend\nserver\nsettings\nshare\nshare-2\nshield\nshield-off\nshopping-bag\nshopping-cart\nshuffle\nsidebar\nskip-back\nskip-forward\nslack\nslash\nsliders\nsmartphone\nsmile\nspeaker\nsquare\nstar\nstop-circle\nsun\nsunrise\nsunset\ntablet\ntag\ntarget\nterminal\nthermometer\nthumbs-down\nthumbs-up\ntoggle-left\ntoggle-right\ntool\ntrash\ntrash-2\ntrello\ntrending-down\ntrending-up\ntriangle\ntruck\ntv\ntwitch\ntwitter\ntype\numbrella\nunderline\nunlock\nupload\nupload-cloud\nuser\nuser-check\nuser-minus\nuser-plus\nuser-x\nusers\nvideo\nvideo-off\nvoicemail\nvolume\nvolume-1\nvolume-2\nvolume-x\nwatch\nwifi\nwifi-off\nwind\nx\nx-circle\nx-octagon\nx-square\nyoutube\nzap\nzap-off\nzoom-in\nzoom-out"
+        },
+        {
+            "fieldname": "order",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "Order"
+        },
+        {
+            "default": "1",
+            "fieldname": "enabled",
+            "fieldtype": "Check",
+            "label": "Enabled"
+        },
+        {
+            "default": "0",
+            "fieldname": "is_public",
+            "fieldtype": "Check",
+            "label": "Public"
+        },
+        {
+            "default": "1",
+            "depends_on": "eval:!doc.is_public",
+            "fieldname": "requires_auth",
+            "fieldtype": "Check",
+            "label": "Requires Auth"
+        },
+        {
+            "fieldname": "feature_flag",
+            "fieldtype": "Data",
+            "label": "Feature Flag"
+        },
+        {
+            "fieldname": "parent_item",
+            "fieldtype": "Link",
+            "label": "Parent Item",
+            "options": "Sidebar Item"
+        },
+        {
+            "fieldname": "roles",
+            "fieldtype": "Table",
+            "label": "Roles",
+            "options": "Sidebar Item Role"
+        },
+        {
+            "fieldname": "description",
+            "fieldtype": "Small Text",
+            "label": "Description"
+        }
+    ],
+    "index_web_pages_for_search": 1,
+    "links": [],
+    "modified": "2025-12-09 00:00:00.000000",
+    "module": "Portal RRHH",
+    "name": "Sidebar Item",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "System Manager",
+            "share": 1,
+            "write": 1
+        },
+        {
+            "read": 1,
+            "report": 1,
+            "role": "HR Manager"
+        }
+    ],
+    "search_fields": "title,path",
+    "show_title_field_in_link": 1,
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": [],
+    "title_field": "title",
+    "track_changes": 1
+}

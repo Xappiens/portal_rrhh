@@ -37,7 +37,13 @@ const pageConfigs = {
   'Dashboard': {
     title: 'Panel Principal',
     actionButton: 'Registro de Jornada',
+    actionButton: 'Registro de Jornada',
     actionIcon: 'clock'
+  },
+  'Fichaje': {
+    title: 'Fichaje',
+    actionButton: '',
+    actionIcon: ''
   },
   'Contratacion': {
     title: 'Contratación',

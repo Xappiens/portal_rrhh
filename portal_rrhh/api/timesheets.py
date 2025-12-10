@@ -4,16 +4,23 @@ from frappe.utils import getdate, today, add_days, get_first_day, get_last_day, 
 import json
 
 def get_employee():
-    """Get the employee record for the current user."""
+    """Get the employee record for the current user. Returns None if not found."""
     employee = frappe.db.get_value("Employee", {"user_id": frappe.session.user}, ["name", "custom_centro"], as_dict=True)
-    if not employee:
-        frappe.throw(_("No se encontró un registro de empleado asociado a tu usuario."))
-    return employee
+    return employee  # Retorna None si no encuentra empleado, sin lanzar excepción
 
 @frappe.whitelist()
 def get_user_settings():
     """Get settings for the current user/employee."""
     employee = get_employee()
+    
+    # Si no hay empleado, retornar configuración vacía
+    if not employee:
+        return {
+            "employee_name": None,
+            "default_sede": None,
+            "default_sede_name": None
+        }
+    
     default_sede = employee.get("custom_centro")
     default_sede_name = ""
     
@@ -30,6 +37,10 @@ def get_user_settings():
 def get_timesheets(start_date=None, end_date=None, start=0, page_length=20):
     """Get list of timesheets for the current employee."""
     employee = get_employee()
+    
+    # Si no hay empleado, retornar lista vacía
+    if not employee:
+        return []
     
     filters = {"employee": employee["name"]}
     
@@ -60,6 +71,9 @@ def get_timesheet_details(name):
         
         # Verify permission (own timesheet)
         employee = get_employee()
+        if not employee:
+            frappe.throw(_("No se encontró un registro de empleado asociado a tu usuario."), frappe.PermissionError)
+        
         if timesheet.employee != employee["name"]:
             frappe.throw(_("No tienes permiso para ver este documento."), frappe.PermissionError)
 
@@ -74,6 +88,8 @@ def save_timesheet(data):
         data = json.loads(data)
     
     employee = get_employee()
+    if not employee:
+        frappe.throw(_("No se encontró un registro de empleado asociado a tu usuario."))
     
     # Check if we are updating or creating
     name = data.get("name")
@@ -152,6 +168,9 @@ def submit_timesheet(name):
     """Submit the timesheet."""
     doc = frappe.get_doc("Timesheet", name)
     employee = get_employee()
+    
+    if not employee:
+        frappe.throw(_("No se encontró un registro de empleado asociado a tu usuario."), frappe.PermissionError)
     
     if doc.employee != employee["name"]:
         frappe.throw(_("No tienes permiso para validar este documento."), frappe.PermissionError)

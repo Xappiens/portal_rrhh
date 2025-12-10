@@ -1,49 +1,87 @@
 <template>
-  <div v-if="employee.data" class="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-6">
-    <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-        <div>
-            <h2 class="text-lg font-bold text-gray-900">
-                {{ __('Hola, {0} 👋', [employee.data.first_name]) }}
-            </h2> 
-            <div class="font-medium text-sm text-gray-500 mt-1" v-if="lastLog">
-                <div v-if="lastLogType === 'check-in'" class="flex items-center space-x-2 text-green-600">
-                     <span class="relative flex h-3 w-3">
-                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                    </span>
-                    <span>{{ __('En curso: {0}', [elapsedTime]) }}</span>
-                </div>
-                 <div v-else class="text-gray-500">
-                    <span>{{ __('Total hoy: {0}', [dailyTotal]) }}</span>
-                    <span class="mx-1">&middot;</span>
-                    <span>{{ __('Último check-out: {0}', [formatTimestamp(lastLog.time)]) }}</span>
-                </div>
-            </div>
-            <div v-else class="font-medium text-sm text-gray-500 mt-1">
-                 {{ dayjs().format("D MMMM, YYYY") }}
+  <div v-if="employee.data" class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <!-- LEFT COLUMN: Greeting & Actions -->
+        <div class="flex flex-col justify-center items-start space-y-4">
+             <div>
+                <h2 class="text-xl font-bold text-gray-900 leading-tight">
+                    {{ __('Hola, {0} 👋', [employee.data.first_name]) }}
+                </h2>
+                <p class="text-sm text-gray-500 mt-1">
+                    {{ __('Registra tu jornada laboral') }}
+                </p>
+             </div>
+
+             <div v-if="settings.data?.allow_employee_checkin_from_mobile_app" class="w-full">
+                <Button
+                    size="lg"
+                    variant="solid"
+                    :theme="nextAction.action === 'IN' ? 'green' : 'gray'"
+                    @click="openCheckinModal"
+                    class="!px-6 !py-2 !text-base shadow-md w-full md:w-auto justify-center"
+                >
+                    <template #prefix>
+                        <FeatherIcon
+                            :name="nextAction.action === 'IN' ? 'log-in' : 'log-out'"
+                            class="w-6 h-6 mr-2"
+                        />
+                    </template>
+                    {{ nextAction.label }}
+                </Button>
+                <!-- Status Badge -->
+                 <div class="mt-4 flex items-center space-x-2">
+                    <div v-if="lastLogType === 'check-in'" class="flex items-center text-green-600 font-medium">
+                        <span class="relative flex h-3 w-3 mr-2">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                          <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                        </span>
+                        {{ __('Actualmente Trabajando') }}
+                    </div>
+                     <div v-else class="flex items-center text-gray-500 font-medium">
+                        <span class="h-3 w-3 rounded-full bg-gray-300 mr-2"></span>
+                        {{ __('Jornada Pausada / No iniciada') }}
+                    </div>
+                 </div>
             </div>
         </div>
 
-        <div v-if="settings.data?.allow_employee_checkin_from_mobile_app">
-            <Button
-                size="lg"
-                variant="solid"
-                :theme="nextAction.action === 'IN' ? 'green' : 'gray'"
-                @click="openCheckinModal"
-                class="!px-6 !py-2 !text-base shadow-sm"
-            >
-                <template #prefix>
-                    <FeatherIcon
-                        :name="nextAction.action === 'IN' ? 'log-in' : 'log-out'"
-                        class="w-5 h-5 mr-1"
-                    />
-                </template>
-                {{ nextAction.label }}
-            </Button>
+        <!-- RIGHT COLUMN: Stats & Timers -->
+        <div class="bg-gray-50 rounded-lg p-4 border border-gray-100 flex flex-col justify-center space-y-4">
+            <!-- Date -->
+            <div class="text-right border-b border-gray-200 pb-2">
+                 <div class="text-2xl font-bold text-gray-800">{{ dayjs().format("D") }}</div>
+                 <div class="text-base text-gray-500 uppercase tracking-wide">{{ dayjs().format("MMMM YYYY") }}</div>
+                 <div class="text-xs text-gray-400 mt-1">{{ dayjs().format("dddd") }}</div>
+            </div>
+
+            <!-- Counters -->
+            <div class="grid grid-cols-2 gap-3">
+                <!-- Work Timer -->
+                <div class="bg-white p-3 rounded shadow-sm border border-gray-100">
+                    <div class="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-1">{{ __('Tiempo Trabajado') }}</div>
+                    <div class="text-xl font-mono font-semibold text-gray-800">
+                        {{ formatDuration(totalWorkSeconds) }}
+                    </div>
+                </div>
+
+                 <!-- Rest Timer -->
+                <div class="bg-white p-3 rounded shadow-sm border border-gray-100">
+                    <div class="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-1">{{ __('Tiempo Descanso') }}</div>
+                    <div class="text-xl font-mono font-semibold text-gray-500">
+                         {{ formatDuration(totalRestSeconds) }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-xs text-center text-gray-400">
+                 {{ __('Último registro: {0}', [lastLog ? formatTimestamp(lastLog.time) : '--:--']) }}
+            </div>
         </div>
+
     </div>
 
-    <!-- Check-in Dialog -->
+    <!-- Check-in Dialog (Same as before) -->
     <Dialog
         v-model="showModal"
         :options="{
@@ -107,11 +145,21 @@ import { createResource, createListResource, toast, FeatherIcon, Button, Dialog 
 import { computed, ref, onMounted, onBeforeUnmount, watch } from "vue"
 import dayjs from "dayjs"
 import duration from "dayjs/plugin/duration"
+import 'dayjs/locale/es' 
+dayjs.locale('es')
 dayjs.extend(duration)
 
 // Utility formatters
 const formatTimestamp = (time) => {
     return dayjs(time).format("HH:mm")
+}
+
+const formatDuration = (seconds) => {
+    const d = dayjs.duration(seconds, 'seconds')
+    const h = Math.floor(d.asHours())
+    const m = d.minutes()
+    const s = d.seconds()
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
 const __ = (text, args) => {
@@ -133,8 +181,9 @@ const longitude = ref(0)
 const locationStatus = ref("")
 const showModal = ref(false)
 const submitting = ref(false)
-const elapsedTime = ref("00:00:00")
-const dailyTotal = ref("0h 0m")
+
+const totalWorkSeconds = ref(0)
+const totalRestSeconds = ref(0)
 let timerInterval = null
 
 // Fetch Employee Info
@@ -186,57 +235,67 @@ const nextAction = computed(() => {
     return { action: "OUT", label: __("Salir") }
 })
 
-const updateTimer = () => {
-    if (lastLog.value && lastLog.value.log_type === 'IN') {
-        const start = dayjs(lastLog.value.time)
-        const now = dayjs()
-        const diff = now.diff(start)
-        elapsedTime.value = dayjs.duration(diff).format("HH:mm:ss")
-    }
-}
-
-const calculateDailyTotal = () => {
+// Main Logic for Counting
+const calculateTimers = () => {
     if (!checkins.data) return
-    
-    // Sort ascending for calculation
+
+    // Sort ascending: Earliest first
     const logs = [...checkins.data].sort((a, b) => new Date(a.time) - new Date(b.time))
-    let totalMs = 0
-    let lastIn = null
     
-    logs.forEach(log => {
+    let workSec = 0
+    let restSec = 0
+    let lastIn = null
+    let lastOut = null
+
+    // Iterate through logs to build completed intervals
+    logs.forEach((log, index) => {
         if (log.log_type === 'IN') {
-            lastIn = dayjs(log.time)
-        } else if (log.log_type === 'OUT' && lastIn) {
-            totalMs += dayjs(log.time).diff(lastIn)
-            lastIn = null
+             // If we had a previous OUT, the gap between that OUT and this IN is rest
+             if (lastOut) {
+                 restSec += dayjs(log.time).diff(lastOut, 'second')
+                 lastOut = null // Consumed
+             }
+             lastIn = dayjs(log.time)
+        } else if (log.log_type === 'OUT') {
+            if (lastIn) {
+                // Completed work session
+                workSec += dayjs(log.time).diff(lastIn, 'second')
+                lastIn = null // Consumed
+            }
+            lastOut = dayjs(log.time)
         }
     })
+
+    // Handle "Active" states (Live Ticking)
+    const now = dayjs()
     
-    // If still checked in, add time until now? Usually daily total implies "completed" time, 
-    // but user might want to see accumulation. Let's keep it strictly completed pairs to avoid confusion with "Elapsed".
-    // Or we could show "Completed: Xh Ym". 
-    // The request said "indicator of total time of the day" when checking out.
-    // So usually sum of completed sessions.
-    
-    const d = dayjs.duration(totalMs)
-    dailyTotal.value = `${Math.floor(d.asHours())}h ${d.minutes()}m`
+    // If currently checked IN (lastIn is set and not null because we exhausted logs)
+    // Actually, based on logic: if last log was IN, lastIn will be set.
+    if (lastIn) {
+        workSec += now.diff(lastIn, 'second')
+    }
+
+
+
+    totalWorkSeconds.value = workSec
+    totalRestSeconds.value = restSec
 }
 
-watch(lastLog, (newVal) => {
-    if (timerInterval) clearInterval(timerInterval)
-    
-    if (newVal && newVal.log_type === 'IN') {
-        updateTimer()
-        timerInterval = setInterval(updateTimer, 1000)
-    } else {
-        elapsedTime.value = "00:00:00"
-    }
-    calculateDailyTotal()
-}, { immediate: true })
+onMounted(() => {
+    timerInterval = setInterval(() => {
+        calculateTimers()
+    }, 1000)
+})
 
 onBeforeUnmount(() => {
     if (timerInterval) clearInterval(timerInterval)
 })
+
+// Watch checkins reload to recalc immediately
+watch(() => checkins.data, () => {
+    calculateTimers()
+})
+
 
 const handleLocationSuccess = (position) => {
     latitude.value = position.coords.latitude

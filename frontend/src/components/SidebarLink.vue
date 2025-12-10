@@ -15,7 +15,7 @@
               <FeatherIcon
                 v-if="typeof icon == 'string'"
                 :name="icon"
-                class="size-4.5 text-gray-700"
+                class="w-5 h-5 text-gray-700"
               />
               <component v-else :is="icon" class="size-4.5 text-gray-700" />
             </span>
@@ -49,7 +49,7 @@ const route = useRoute()
 
 const props = defineProps({
   icon: {
-    type: Object,
+    type: [Object, String],
   },
   label: {
     type: String,

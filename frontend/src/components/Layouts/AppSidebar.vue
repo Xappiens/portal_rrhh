@@ -153,7 +153,7 @@ const allViews = computed(() => {
   const config = []
 
   for (const item of items) {
-    const icon = iconMap[item.path] || item.icon || 'circle'
+    const icon = item.icon || iconMap[item.path] || 'circle'
     const link = {
       label: item.title,
       icon,

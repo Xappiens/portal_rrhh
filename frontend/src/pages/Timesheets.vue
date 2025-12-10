@@ -26,7 +26,7 @@
         </div>
       </div>
 
-      <CheckInWidget />
+
 
       <!-- LIST VIEW -->
       <div v-if="viewMode === 'list'" class="bg-white rounded shadow p-4">
@@ -241,7 +241,6 @@
 </template>
 
 <script setup>
-import CheckInWidget from '@/components/CheckInWidget.vue'
 import { ref, computed, onMounted } from 'vue'
 import { createResource, Button, Badge, call, Dialog, FeatherIcon, Autocomplete, Input } from 'frappe-ui'
 import dayjs from 'dayjs'

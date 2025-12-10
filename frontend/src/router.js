@@ -53,6 +53,11 @@ const routes = [
     name: 'Timesheets',
     component: () => import('@/pages/Timesheets.vue'),
   },
+  {
+    path: '/fichaje',
+    name: 'Fichaje',
+    component: () => import('@/pages/Fichaje.vue'),
+  },
 
   {
     path: '/ai-dashboard',
