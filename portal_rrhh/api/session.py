@@ -16,14 +16,27 @@ def get_users():
 
 	users = query.run(as_dict=1)
 
-	for user in users:
-		if frappe.session.user == user.name:
-			user.session_user = True
-
-		# Para RRHH, consideramos manager a los que tienen roles de RRHH Manager o Administrator
-		user.is_manager = (
-			"RRHH Manager" in frappe.get_roles(user.name) or
-			"HR Manager" in frappe.get_roles(user.name) or
-			user.name == "Administrator"
+	# Optimization: Batch fetch roles to avoid N+1 queries
+	if users:
+		user_names = [u.name for u in users]
+		
+		# Find which users have manager roles
+		managers = frappe.get_all(
+			"Has Role",
+			filters={
+				"parent": ["in", user_names],
+				"role": ["in", ["RRHH Manager", "HR Manager"]]
+			},
+			fields=["parent"],
+			pluck="parent"
 		)
+		manager_set = set(managers)
+		manager_set.add("Administrator")
+
+		for user in users:
+			if frappe.session.user == user.name:
+				user.session_user = True
+
+			user.is_manager = user.name in manager_set
+
 	return users
