@@ -49,6 +49,11 @@ const routes = [
     component: () => import('@/pages/AttendanceReport.vue'),
   },
   {
+    path: '/anomalies',
+    name: 'AttendanceAnomalies',
+    component: () => import('@/pages/AttendanceAnomalies.vue'),
+  },
+  {
     path: '/timesheets',
     name: 'Timesheets',
     component: () => import('@/pages/Timesheets.vue'),

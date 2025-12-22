@@ -69,6 +69,8 @@ function handleClick() {
   if (!props.to) return
   if (typeof props.to === 'object') {
     router.push(props.to)
+  } else if (typeof props.to === 'string' && props.to.startsWith('/')) {
+    router.push(props.to)
   } else {
     router.push({ name: props.to })
   }
@@ -77,6 +79,9 @@ function handleClick() {
 let isActive = computed(() => {
   if (route.query.view) {
     return route.query.view == props.to?.query?.view
+  }
+  if (typeof props.to === 'string' && props.to.startsWith('/')) {
+      return route.path === props.to
   }
   return route.name === props.to
 })

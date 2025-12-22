@@ -9,7 +9,7 @@
         :subtitle="''"
         :breadcrumbs="[]"
         :show-export="false"
-        :show-new-button="true"
+        :show-new-button="!!currentPageActionButton"
         :new-button-text="currentPageActionButton"
         :new-button-icon="currentPageActionIcon"
       />
@@ -31,8 +31,8 @@ const route = useRoute()
 const pageConfigs = {
   'Home': {
     title: 'Portal RRHH',
-    actionButton: 'Nuevo Empleado',
-    actionIcon: 'plus'
+    actionButton: '',
+    actionIcon: ''
   },
   'Dashboard': {
     title: 'Panel Principal',
@@ -52,8 +52,8 @@ const pageConfigs = {
   },
   'Empleados': {
     title: 'Empleados',
-    actionButton: 'Nuevo Empleado',
-    actionIcon: 'plus'
+    actionButton: '',
+    actionIcon: ''
   },
   'Vacantes': {
     title: 'Vacantes',
