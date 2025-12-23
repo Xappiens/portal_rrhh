@@ -1,0 +1,105 @@
+{
+    "actions": [],
+    "autoname": "format:{employee}-{attendance_date}",
+    "creation": "2024-01-01 00:00:00.000000",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "field_order": [
+        "employee",
+        "employee_name",
+        "attendance_date",
+        "column_break_1",
+        "total_hours",
+        "verified_in_time",
+        "verified_out_time",
+        "rest_time"
+    ],
+    "fields": [
+        {
+            "fieldname": "employee",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Employee",
+            "options": "Employee",
+            "reqd": 1
+        },
+        {
+            "fetch_from": "employee.employee_name",
+            "fieldname": "employee_name",
+            "fieldtype": "Data",
+            "label": "Employee Name",
+            "read_only": 1
+        },
+        {
+            "fieldname": "attendance_date",
+            "fieldtype": "Date",
+            "in_list_view": 1,
+            "label": "Date",
+            "reqd": 1
+        },
+        {
+            "fieldname": "column_break_1",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "total_hours",
+            "fieldtype": "Float",
+            "in_list_view": 1,
+            "label": "Total Verified Hours",
+            "non_negative": 1,
+            "reqd": 1
+        },
+        {
+            "fieldname": "verified_in_time",
+            "fieldtype": "Time",
+            "label": "Verified In Time"
+        },
+        {
+            "fieldname": "verified_out_time",
+            "fieldtype": "Time",
+            "label": "Verified Out Time"
+        },
+        {
+            "fieldname": "rest_time",
+            "fieldtype": "Data",
+            "label": "Rest Time",
+            "description": "Optional: Verified rest time duration string (e.g. 1h 30m)"
+        }
+    ],
+    "index_web_pages_for_search": 1,
+    "links": [],
+    "modified": "2024-01-01 00:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "Portal RRHH",
+    "name": "Verified Attendance",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "System Manager",
+            "share": 1,
+            "write": 1
+        },
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "HR Manager",
+            "share": 1,
+            "write": 1
+        }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": []
+}

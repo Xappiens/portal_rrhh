@@ -70,12 +70,12 @@ const props = defineProps({
           {
             icon: 'corner-up-left',
             label: 'Cambiar a Escritorio',
-            onClick: () => window.location.replace('/app'),
+            handler: () => window.location.replace('/app'),
           },
           {
             icon: 'life-buoy',
             label: 'Soporte',
-            onClick: () => window.location.replace('/helpdesk'),
+            handler: () => window.location.replace('/helpdesk'),
           },
         ],
       },
@@ -86,7 +86,7 @@ const props = defineProps({
           {
             icon: 'log-out',
             label: 'Cerrar Sesión',
-            onClick: () => {
+            handler: () => {
               session.logout.submit()
             },
           },
