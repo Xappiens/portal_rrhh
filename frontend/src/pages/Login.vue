@@ -62,12 +62,12 @@ let email = ref('')
 let password = ref('')
 
 function submit() {
-  console.log('Submitting login with:', { usr: email.value })
+
   session.login.submit({
     usr: email.value,
     pwd: password.value,
   }).then(() => {
-    console.log('Login submit completed')
+
   }).catch((error) => {
     console.error('Login submit error:', error)
   })

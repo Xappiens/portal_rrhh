@@ -1,6 +1,7 @@
 import frappe
 from frappe import _
 from frappe.utils import getdate, today, add_days, get_first_day, get_last_day, flt
+from datetime import datetime, timedelta
 import json
 
 def get_employee():
@@ -100,17 +101,47 @@ def save_timesheet(data):
         if doc.docstatus == 1:
             frappe.throw(_("No se puede editar un timesheet ya validado."))
     else:
+        # Create new Timesheet
         doc = frappe.new_doc("Timesheet")
         doc.employee = employee["name"]
         doc.start_date = data.get("start_date")
-        doc.end_date = data.get("end_date") # Usually calculated, but can be passed. 
-        # Ideally we should set end_date based on start_date (weekly) if not provided?
-        # Let's assume frontend sends correct dates or we calculate.
-        if not doc.end_date and doc.start_date:
-             # Default to 1 week if not set? But usually timesheet logic is strict.
-             pass
+        doc.end_date = data.get("end_date")
+        
+    # VALIDATION: Check for overlapping timesheets
+    # We want to check if there is ANY other timesheet for this employee that overlaps.
+    # Overlap logic: (StartA <= EndB) and (EndA >= StartB)
+    # We exclude the current doc.name if it exists (update scenario)
+    
+    start_date = doc.start_date or data.get("start_date")
+    end_date = doc.end_date or data.get("end_date")
+    
+    if start_date and end_date:
+        filters = {
+            "employee": employee["name"],
+            "name": ["!=", doc.name] if doc.name else ["is", "set"], # Only exclude if we have a name (update)
+            "docstatus": ["<", 2], # Exclude cancelled
+            "start_date": ["<=", end_date],
+            "end_date": [">=", start_date]
+        }
+        
+        # If new doc, name is None, so filters["name"] check might be weird.
+        # Better construction:
+        query_filters = [
+            ["Timesheet", "employee", "=", employee["name"]],
+            ["Timesheet", "docstatus", "<", 2],
+            ["Timesheet", "start_date", "<=", end_date],
+            ["Timesheet", "end_date", ">=", start_date]
+        ]
+        
+        if doc.name:
+             query_filters.append(["Timesheet", "name", "!=", doc.name])
+             
+        existing = frappe.get_all("Timesheet", filters=query_filters, limit=1)
+        
+        if existing:
+            frappe.throw(_("Ya existe un registro de horas para este periodo (Semana: {0})").format(start_date), frappe.ValidationError)
 
-    # Update basic fields
+    # Update basic fields (redundant for new doc but safe)
     if "start_date" in data:
         doc.start_date = data["start_date"]
     if "end_date" in data:
@@ -138,6 +169,7 @@ def save_timesheet(data):
             row.date = log.get("date")
             row.hours = flt(log.get("hours"))
             row.sede = log.get("sede")
+            row.plan = log.get("plan")
             row.course = log.get("course")
             row.expediente = log.get("expediente")
             
@@ -148,11 +180,21 @@ def save_timesheet(data):
             # and for potential future reporting, but we bypass validation.
             # User explicitly requested NO invented hours and NO activity requirement.
             std_row = doc.append("time_logs", {})
-            std_row.activity_type = default_activity # Keep default to be safe against some strict reports, but can be blank with ignore_mandatory
+            std_row.activity_type = default_activity 
             std_row.hours = row.hours
             std_row.description = "Registro automático desde Portal RRHH"
             std_row.date = row.date
-            # No from_time / to_time populated
+            
+            # Populate mandatory time fields to satisfy ERPNext validation
+            # We assume a standard start time of 09:00:00
+            if row.hours > 0:
+                from_time_str = f"{row.date} 09:00:00"
+                # Add hours to start time
+                start_dt = datetime.strptime(from_time_str, "%Y-%m-%d %H:%M:%S")
+                end_dt = start_dt + timedelta(hours=row.hours)
+                
+                std_row.from_time = start_dt
+                std_row.to_time = end_dt
             
         doc.total_hours = total_hours
         
@@ -182,28 +224,95 @@ def submit_timesheet(name):
     return doc.as_dict()
 
 @frappe.whitelist()
+def delete_timesheet(name):
+    """Delete a timesheet (only if Draft)."""
+    doc = frappe.get_doc("Timesheet", name)
+    employee = get_employee()
+    
+    if not employee:
+        frappe.throw(_("No se encontró un registro de empleado asociado a tu usuario."), frappe.PermissionError)
+    
+    if doc.employee != employee["name"]:
+        frappe.throw(_("No tienes permiso para eliminar este documento."), frappe.PermissionError)
+        
+    if doc.docstatus != 0:
+        frappe.throw(_("Solo se pueden eliminar borradores."))
+        
+    frappe.delete_doc("Timesheet", name)
+    return True
+
+@frappe.whitelist()
 def get_sedes():
     """Get list of active Sedes (Rooms)."""
     # Assuming 'Room' doctype is used for Sedes as per context
     return frappe.get_all("Room", fields=["name", "room_name"], filters={"custom_de_baja": 0}, order_by="room_name")
 
 @frappe.whitelist()
-def get_courses(txt=None, program=None):
-    """Get list of active Courses with optional search and program filter."""
+def get_planes(txt=None, limit=50):
+    """Get list of active Planes Formativos."""
     filters = {}
-    if txt:
-        filters["custom_display_identifier"] = ["like", f"%{txt}%"]
-    if program:
-        # Link field identified as 'expediente'
-        filters["expediente"] = program
     
-    return frappe.get_all("Course", fields=["name", "course_name", "custom_display_identifier"], filters=filters, order_by="custom_display_identifier", limit_page_length=20)
+    or_filters = None
+    if txt:
+        or_filters = {
+            "n_plan_formativo": ["like", f"%{txt}%"],
+            "custom_descripción_del_plan": ["like", f"%{txt}%"],
+            "plan_formativo": ["like", f"%{txt}%"] 
+        }
+        
+    return frappe.get_all("Planes Formativos", 
+        fields=["name", "custom_descripción_del_plan", "n_plan_formativo", "plan_formativo", "custom_numero_plan_formativo"], 
+        filters=filters, 
+        or_filters=or_filters,
+        order_by="name desc", 
+        limit_page_length=limit
+    )
 
 @frappe.whitelist()
-def get_programs(txt=None):
-    """Get list of active Programs (Expedientes) with optional search."""
+def get_courses(txt=None, program=None, plan=None, limit=50):
+    """Get list of active Courses with optional search and filters."""
     filters = {}
+    or_filters = None
+    
+    # We want to filter by program/plan strictly if provided
+    if program:
+        filters["expediente"] = program
+    if plan and not program: 
+        filters["custom_plan"] = plan
+
     if txt:
-        filters["custom_num_de_expediente"] = ["like", f"%{txt}%"]
+        or_filters = {
+            "custom_display_identifier": ["like", f"%{txt}%"],
+            "course_name": ["like", f"%{txt}%"]
+        }
+    
+    return frappe.get_all("Course", 
+        fields=["name", "course_name", "custom_display_identifier", "expediente", "custom_plan"], 
+        filters=filters, 
+        or_filters=or_filters,
+        order_by="custom_display_identifier", 
+        limit_page_length=limit
+    )
+
+@frappe.whitelist()
+def get_programs(txt=None, plan=None, limit=50):
+    """Get list of active Programs (Expedientes) with optional search and plan filter."""
+    filters = {}
+    or_filters = None
+    
+    if plan:
+        filters["custom_plan"] = plan
         
-    return frappe.get_all("Program", fields=["name", "program_name", "custom_num_de_expediente"], filters=filters, order_by="custom_num_de_expediente", limit_page_length=20)
+    if txt:
+        or_filters = {
+            "custom_num_de_expediente": ["like", f"%{txt}%"],
+            "program_name": ["like", f"%{txt}%"]
+        }
+        
+    return frappe.get_all("Program", 
+        fields=["name", "program_name", "custom_num_de_expediente", "custom_plan"], 
+        filters=filters, 
+        or_filters=or_filters, 
+        order_by="custom_num_de_expediente", 
+        limit_page_length=limit
+    )

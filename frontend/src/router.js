@@ -14,6 +14,11 @@ const routes = [
     component: () => import('@/pages/Profile.vue'),
   },
   {
+    path: '/vacaciones',
+    name: 'SpanishLeave',
+    component: () => import('@/pages/SpanishLeave.vue'),
+  },
+  {
     path: '/contratacion',
     name: 'Contratacion',
     component: () => import('@/pages/Contratacion.vue'),
@@ -62,6 +67,12 @@ const routes = [
     path: '/fichaje',
     name: 'Fichaje',
     component: () => import('@/pages/Fichaje.vue'),
+  },
+
+  {
+    path: '/onboarding',
+    name: 'Onboarding',
+    component: () => import('@/pages/Onboarding.vue'),
   },
 
   {

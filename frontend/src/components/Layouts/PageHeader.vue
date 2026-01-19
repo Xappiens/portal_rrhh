@@ -1,7 +1,7 @@
 <template>
   <div class="bg-white border-b border-gray-200 px-6 py-4">
     <div class="flex items-center justify-between">
-      <div class="flex items-center space-x-4">
+      <div id="page-header-title-area" class="flex items-center space-x-4">
         <div v-if="!hideTitle">
           <h1 class="text-2xl font-semibold text-gray-900">{{ title }}</h1>
           <p class="text-sm text-gray-600">{{ subtitle }}</p>
@@ -15,7 +15,7 @@
           </span>
         </div>
       </div>
-      <div class="flex items-center space-x-3">
+      <div id="page-header-actions" class="flex items-center space-x-3">
         <slot name="actions">
           <Button
             v-if="showExport"
@@ -89,7 +89,7 @@ const handleButtonClick = () => {
     window.location.href = '/hrms'
   } else {
     // For other buttons, emit an event or handle differently
-    console.log('Button clicked:', props.newButtonText)
+
   }
 }
 </script>

@@ -642,7 +642,7 @@ export default {
         return
       }
 
-      console.log('🚀 Starting report generation for:', this.effectiveJobOpening)
+
       await this.loadJobOpeningData()
 
       this.isGenerating = true
@@ -656,12 +656,12 @@ export default {
       }
       
       try {
-        console.log('📞 Calling generate_recruitment_report API...')
+
         const data = await call('ai_hr_recruitment.ai_hr_recruitment.api.recruitment_reports.generate_recruitment_report', {
           job_opening: this.effectiveJobOpening
         })
   
-        console.log('📥 API Response:', data)
+
   
         if (!data) {
           throw new Error('No response from server')
@@ -673,14 +673,14 @@ export default {
         if (!reportId) {
           console.error('❌ No report_id in response. Full response:', JSON.stringify(data, null, 2))
           // Try to get the latest report for this job opening as fallback
-          console.log('🔄 Trying to get latest report for job opening as fallback...')
+
           try {
             const reports = await call('ai_hr_recruitment.ai_hr_recruitment.api.recruitment_reports.get_reports_for_job_opening', {
               job_opening: this.effectiveJobOpening
             })
             if (reports && reports.length > 0) {
               reportId = reports[0].name
-              console.log('✅ Found existing report:', reportId)
+
             }
           } catch (fallbackError) {
             console.error('❌ Fallback also failed:', fallbackError)
@@ -693,11 +693,11 @@ export default {
           }
         }
 
-        console.log('📋 Report ID received:', reportId)
-        console.log('📊 Response status:', data.status)
+
+
   
         // ALWAYS load the report, regardless of response status
-        console.log('📥 Loading report:', reportId)
+
         await this.loadReport(reportId)
         
         // Refresh the reports list to include the new report

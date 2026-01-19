@@ -6,15 +6,14 @@
         <div class="flex space-x-2">
           <Button
             v-if="viewMode === 'edit'"
-            variant="outline"
-            @click="viewMode = 'list'"
+            appearance="white"
+            @click="goBackToList"
           >
             {{ __('Volver al listado') }}
           </Button>
           <Button
             v-if="viewMode === 'list'"
-            variant="solid"
-            theme="gray"
+            appearance="primary"
             size="md"
             label="Nuevo Registro Semanal"
             :loading="loading"
@@ -34,41 +33,46 @@
         <div v-else-if="timesheets.length === 0" class="text-center py-4 text-gray-500">
           {{ __('No hay registros de horas. Crea uno nuevo.') }}
         </div>
-        <table v-else class="w-full text-left border-collapse">
-          <thead>
-            <tr class="border-b">
-              <th class="p-2">{{ __('Semana') }}</th>
-              <th class="p-2">{{ __('Horas Totales') }}</th>
-              <th class="p-2">{{ __('Estado') }}</th>
-              <th class="p-2">{{ __('Acciones') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
+        <div v-else class="divide-y">
+            <ListItem
               v-for="ts in timesheets"
               :key="ts.name"
-              class="border-b hover:bg-gray-50"
+              :title="`Semana #${dayjs(ts.start_date).week()} • ${formatDate(ts.start_date)} - ${formatDate(dayjs(ts.start_date).add(4, 'day').format('YYYY-MM-DD'))}`"
             >
-              <td class="p-2">
-                {{ formatDate(ts.start_date) }} - {{ formatDate(ts.end_date) }}
-              </td>
-              <td class="p-2">{{ ts.total_hours }} h</td>
-              <td class="p-2">
-                <Badge :variant="getStatusVariant(ts.status)">{{ ts.status }}</Badge>
-              </td>
-              <td class="p-2">
-                <Button size="sm" variant="ghost" @click="editTimesheet(ts.name)">
-                  {{ __('Ver / Editar') }}
-                </Button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                <template #actions>
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center space-x-3">
+                             <span class="text-gray-900 font-medium">{{ ts.total_hours }} h</span>
+                             <Badge :color="getStatusColor(ts.status)">{{ getStatusLabel(ts.status) }}</Badge>
+                        </div>
+                        
+                        <div class="flex items-center space-x-1">
+                          <Button 
+                            v-if="ts.status === 'Draft' || ts.status === 'Borrador'"
+                            size="sm" 
+                            appearance="minimal" 
+                            class="text-red-500 hover:text-red-700"
+                            @click="deleteTimesheet(ts.name)" 
+                            :title="__('Eliminar')"
+                          >
+                            <FeatherIcon name="trash-2" class="w-4 h-4" />
+                          </Button>
+                          <Button size="sm" appearance="minimal" @click="duplicateTimesheet(ts.name)" :title="__('Duplicar')">
+                            <FeatherIcon name="copy" class="w-4 h-4" />
+                          </Button>
+                          <Button size="sm" appearance="minimal" @click="editTimesheet(ts.name)">
+                            {{ __('Ver / Editar') }}
+                          </Button>
+                        </div>
+                    </div>
+                </template>
+            </ListItem>
+        </div>
         
         <!-- Pagination / Load More -->
-        <div class="mt-4 text-center" v-if="hasMoreTimesheets">
+        <div class="mt-4 text-center border-t pt-4" v-if="hasMoreTimesheets">
             <Button
-                variant="subtle"
+                appearance="secondary"
                 :loading="loadingMore"
                 @click="loadMoreTimesheets"
             >
@@ -81,25 +85,20 @@
       <div v-else class="bg-white rounded shadow p-4">
         <div class="mb-4 flex items-center justify-between bg-gray-50 p-3 rounded">
           <div class="flex items-center space-x-4">
-            <Button icon="chevron-left" variant="ghost" @click="changeWeek(-1)" :disabled="!isNew" />
+            <Button icon="chevron-left" appearance="minimal" @click="changeWeek(-1)" :disabled="!isNew" />
             <div class="text-lg font-medium">
               {{ __('Semana del') }} {{ formatDate(currentStartDate) }} {{ __('al') }} {{ formatDate(currentEndDate) }}
             </div>
-             <Button icon="chevron-right" variant="ghost" @click="changeWeek(1)" :disabled="!isNew" />
+             <Button icon="chevron-right" appearance="minimal" @click="changeWeek(1)" :disabled="!isNew" />
           </div>
-          <div>
-            <Badge size="lg" :variant="getStatusVariant(currentTimesheet.status)">
-              {{ currentTimesheet.status || 'Borrador' }}
+          <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-2">
+                <span class="text-xs uppercase text-gray-500 font-bold tracking-wider">{{ __('Total') }}:</span>
+                <span class="text-lg font-bold" :class="totalHours > 39 ? 'text-red-600' : 'text-blue-700'">{{ totalHours }} h</span>
+            </div>
+            <Badge size="lg" :color="getStatusColor(currentTimesheet.status)">
+              {{ getStatusLabel(currentTimesheet.status || 'Borrador') }}
             </Badge>
-          </div>
-        </div>
-
-        <div class="mb-4">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-             <div class="bg-blue-50 p-3 rounded border border-blue-100">
-               <span class="block text-xs uppercase text-blue-500 font-bold tracking-wider">{{ __('Total Horas') }}</span>
-               <span class="text-2xl font-bold text-blue-700">{{ totalHours }} h</span>
-             </div>
           </div>
         </div>
         
@@ -110,9 +109,9 @@
             <!-- Headers -->
             <div class="grid grid-cols-12 gap-2 text-sm font-medium text-gray-500 border-b pb-2">
                 <div class="col-span-2">{{ __('Fecha') }}</div>
-                <div class="col-span-3">{{ __('Sede') }}</div>
-                <div class="col-span-2">{{ __('Expediente') }}</div>
-                <div class="col-span-3">{{ __('Curso') }}</div>
+                <div class="col-span-3">{{ __('Plan Formativo') }} <span class="text-xs text-gray-400">({{ planes.length }})</span></div>
+                <div class="col-span-2">{{ __('Expediente') }} <span class="text-xs text-gray-400">({{ programs.length }})</span></div>
+                <div class="col-span-3">{{ __('Curso') }} <span class="text-xs text-gray-400">({{ courses.length }})</span></div>
                 <div class="col-span-1">{{ __('Horas') }}</div>
                 <div class="col-span-1 text-right">{{ __('Acciones') }}</div>
             </div>
@@ -125,48 +124,56 @@
             >
                 <!-- Date -->
                 <div class="col-span-2">
-                    <select
+                    <Input
+                        type="select"
                         v-model="log.date"
-                        class="form-select w-full text-sm border-gray-300 rounded focus:ring-blue-500 py-1.5"
+                        :options="weekDays"
                         :disabled="isReadOnly"
-                    >
-                        <option 
-                            v-for="d in weekDays.map(d => ({ label: d.label + ' (' + formatDateShort(d.date) + ')', value: d.date }))" 
-                            :key="d.value" 
-                            :value="d.value"
-                        >
-                            {{ d.label }}
-                        </option>
-                    </select>
+                    />
                 </div>
-                <!-- Sede -->
+                <!-- Plan Formativo -->
                 <div class="col-span-3">
                     <Autocomplete
-                        v-model="log.sede"
-                        :options="sedes.map(s => ({ label: s.room_name, value: s.name }))"
+                        v-model="log.plan"
+                        :options="planes.map(p => ({ 
+                            label: (p.n_plan_formativo ? `[${p.n_plan_formativo}] ` : '') + (p.custom_descripción_del_plan || p.name), 
+                            value: p.name 
+                        }))"
                         :disabled="isReadOnly"
-                        placeholder="Seleccionar Sede"
+                        placeholder="Buscar Plan..."
+                        @update:query="(q) => searchPlanes(q)"
+                        @update:modelValue="(val) => updatePlan(log, val)"
                     />
                 </div>
                 <!-- Expediente -->
-                 <div class="col-span-2">
+                 <div class="col-span-2" @click.capture="searchPrograms('', log.plan)">
                     <Autocomplete
                         v-model="log.expediente"
-                        :options="programs.map(p => ({ label: p.custom_num_de_expediente, value: p.name }))"
+                        :options="programs.map(p => ({ 
+                            label: (p.custom_num_de_expediente ? `[${p.custom_num_de_expediente}] ` : '') + (p.program_name || p.name), 
+                            value: p.name, 
+                            link_plan: p.custom_plan 
+                        }))"
                         :disabled="isReadOnly"
                         placeholder="Buscar Exp..."
-                        @update:query="(q) => searchPrograms(q)"
-                        @update:modelValue="() => { log.course = null; }"
+                        @update:query="(q) => searchPrograms(q, log.plan)"
+                        @update:modelValue="(val) => updateProgram(log, val)"
                     />
                 </div>
                 <!-- Curso -->
-                 <div class="col-span-3" @click.capture="searchCourses('', log.expediente)">
+                 <div class="col-span-3" @click.capture="searchCourses('', log.expediente, log.plan)">
                      <Autocomplete
                         v-model="log.course"
-                        :options="courses.map(c => ({ label: c.custom_display_identifier || c.course_name, value: c.name }))"
-                        :disabled="isReadOnly || !log.expediente"
+                        :options="courses.map(c => ({ 
+                            label: (c.custom_display_identifier ? `[${c.custom_display_identifier}] ` : '') + (c.course_name || c.name), 
+                            value: c.name,
+                            link_program: c.expediente,
+                            link_plan: c.custom_plan
+                        }))"
+                        :disabled="isReadOnly"
                         placeholder="Buscar Curso..."
-                        @update:query="(q) => searchCourses(q, log.expediente)"
+                        @update:query="(q) => searchCourses(q, log.expediente, log.plan)"
+                        @update:modelValue="(val) => updateCourse(log, val)"
                     />
                 </div>
                 <!-- Hours -->
@@ -184,7 +191,7 @@
                     <Button 
                         v-if="!isReadOnly"
                         icon="trash-2" 
-                        variant="ghost" 
+                        appearance="minimal" 
                         class="text-red-500 hover:text-red-700"
                         @click="removeLog(index)"
                     />
@@ -193,7 +200,7 @@
 
             <!-- Add Row Button -->
             <div v-if="!isReadOnly" class="pt-2">
-                <Button variant="outline" icon="plus" class="w-full" @click="addLog">
+                <Button appearance="white" icon="plus" class="w-full" @click="addLog">
                     {{ __('Añadir Registro') }}
                 </Button>
             </div>
@@ -203,15 +210,15 @@
         <div class="mt-8 flex justify-end space-x-3 pt-4 border-t">
              <Button 
                 v-if="!isReadOnly"
-                variant="subtle" 
+                appearance="secondary" 
                 @click="save(false)"
                 :loading="saving"
             >
                 {{ __('Guardar Borrador') }}
             </Button>
              <Button 
-                v-if="!isReadOnly"
-                variant="solid" 
+                v-if="!isReadOnly && !isNew"
+                appearance="primary" 
                 @click="attemptSubmit"
                 :loading="saving"
             >
@@ -232,8 +239,8 @@
             <p class="mt-2">{{ __('¿Estás seguro de que quieres validar este registro ahora? Ya no podrás editarlo después.') }}</p>
         </template>
         <template #actions>
-            <Button variant="outline" @click="showWarningDialog = false">{{ __('Cancelar') }}</Button>
-            <Button variant="solid" theme="red" @click="confirmSubmit">{{ __('Sí, Validar') }}</Button>
+            <Button appearance="white" @click="showWarningDialog = false">{{ __('Cancelar') }}</Button>
+            <Button appearance="danger" @click="confirmSubmit">{{ __('Sí, Validar') }}</Button>
         </template>
     </Dialog>
 
@@ -242,10 +249,15 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { createResource, Button, Badge, call, Dialog, FeatherIcon, Autocomplete, Input } from 'frappe-ui'
+import { createResource, Button, Badge, call, Dialog, FeatherIcon, Autocomplete, Input, ListItem } from 'frappe-ui'
+import { useDebounceFn } from '@vueuse/core'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
+import weekOfYear from 'dayjs/plugin/weekOfYear'
 
+const debounce = useDebounceFn
+
+dayjs.extend(weekOfYear)
 dayjs.locale('es')
 
 // State
@@ -260,6 +272,7 @@ const PAGE_LENGTH = 20
 const sedes = ref([])
 const courses = ref([])
 const programs = ref([])
+const planes = ref([])
 const userSettings = ref({})
 
 // Current Edit State
@@ -280,8 +293,8 @@ const weekDays = computed(() => {
     let start = dayjs(currentStartDate.value)
     for (let i = 0; i < 7; i++) {
         days.push({
-            date: start.add(i, 'day').format('YYYY-MM-DD'),
-            label: start.add(i, 'day').format('dddd') // lunes, martes...
+            value: start.add(i, 'day').format('YYYY-MM-DD'),
+            label: start.add(i, 'day').format('dddd') + ' (' + formatDateShort(start.add(i, 'day')) + ')'
         })
     }
     return days
@@ -335,91 +348,205 @@ const loadMoreTimesheets = () => {
 
 const fetchMetadata = async () => {
     try {
-        const [sedesData, coursesData, programsData, settingsData] = await Promise.all([
+        const [sedesData, settingsData, coursesData, programsData, planesData] = await Promise.all([
             call('portal_rrhh.api.timesheets.get_sedes'),
-            call('portal_rrhh.api.timesheets.get_courses'),
-            call('portal_rrhh.api.timesheets.get_programs'),
-            call('portal_rrhh.api.timesheets.get_user_settings')
+            call('portal_rrhh.api.timesheets.get_user_settings'),
+            call('portal_rrhh.api.timesheets.get_courses', { limit: 50 }),
+            call('portal_rrhh.api.timesheets.get_programs', { limit: 50 }),
+            call('portal_rrhh.api.timesheets.get_planes', { limit: 50 })
         ])
         sedes.value = sedesData || []
+        userSettings.value = settingsData || {}
         courses.value = coursesData || []
         programs.value = programsData || []
-        userSettings.value = settingsData || {}
+        planes.value = planesData || []
     } catch (error) {
         console.error(error)
     }
 }
 
 // Methods
-const debounce = (fn, delay) => {
-    let timeoutId
-    return (...args) => {
-        clearTimeout(timeoutId)
-        timeoutId = setTimeout(() => fn(...args), delay)
-    }
-}
 
-const searchCourses = debounce(async (query, program) => {
-    // Force allow empty query if we have a program filter? Maybe, to show initial list? 
-    // But usually user types. If they focus without typing, Autocomplete might trigger query=''
-    // Let's allow empty query if program is set to fetch initial filtered list.
-    if (!query && !program) return
-    
-    // Autocomplete usually sends string or object? 'query' is string text.
-    // 'program' is passed from template as log.expediente (which might be object {label, value} or value string depending on v-model state)
-    // IMPORTANT: log.expediente v-model value. Frappe-UI Autocomplete v-model is usually value.
-    // However, if we bound objects in `options`, it might return object.
-    // But in my replace block, options are `.map(p => ({ label: ..., value: ... }))`
-    // So v-model should be the `value` (which is name).
-    // EXCEPT if `search` event doesn't have access to row context easily... oh wait, I passed `log.expediente` in the template call.
-    // So 'program' here is the v-model value (string name).
-    // BUT what if log.expediente is the object because of initial load mapping?
-    // In editTimesheet I mapped: `expediente: programs.value.find...?.name || l.expediente` which is name string.
-    // So it should be string.
-    
+
+const searchCourses = debounce(async (query, program, plan) => {
+    // If just searching, we allow it. But we respect filters if present.
     const programName = (typeof program === 'object' && program !== null) ? program.value : program
+    const planName = (typeof plan === 'object' && plan !== null) ? plan.value : plan
 
     try {
-        const data = await call('portal_rrhh.api.timesheets.get_courses', { txt: query, program: programName })
+        const data = await call('portal_rrhh.api.timesheets.get_courses', { 
+            txt: query, 
+            program: programName,
+            plan: planName,
+            limit: 5000
+        })
         courses.value = data || []
     } catch (e) {
         console.error(e)
     }
 }, 300)
 
-const searchPrograms = debounce(async (query) => {
-    if (!query) return
+const searchPrograms = debounce(async (query, plan) => {
+    const planName = (typeof plan === 'object' && plan !== null) ? plan.value : plan
+
     try {
-        const data = await call('portal_rrhh.api.timesheets.get_programs', { txt: query })
+        const data = await call('portal_rrhh.api.timesheets.get_programs', { 
+            txt: query,
+            plan: planName,
+            limit: 5000
+        })
         programs.value = data || []
     } catch (e) {
         console.error(e)
     }
 }, 300)
 
+const searchPlanes = debounce(async (query) => {
+    try {
+        const data = await call('portal_rrhh.api.timesheets.get_planes', { txt: query, limit: 5000 })
+        planes.value = data || []
+    } catch (e) {
+        console.error(e)
+    }
+}, 300)
+
+const updatePlan = (log, val) => {
+    // Reset children if plan changes
+    log.expediente = null
+    log.course = null
+}
+
+const updateProgram = async (log, val) => {
+    // Clear course because program changed
+    log.course = null
+    
+    if (!val) return
+
+    const programValue = (typeof val === 'object' && val?.value) ? val.value : val
+    
+    // Attempt to find in currently loaded programs (from search)
+    let found = programs.value.find(p => p.name === programValue)
+    
+    // If not found (unlikely if user just selected it, but possible if set programmatically), fetch it?
+    // For now assume found if user selected it from autocomplete.
+    
+    if (found && found.custom_plan && !log.plan) {
+         // Auto-fill Plan
+         // Check if plan is already in 'planes' list
+         let foundPlan = planes.value.find(pl => pl.name === found.custom_plan)
+         
+         if (!foundPlan) {
+             // Fetch plan details to populate label correctly
+             try {
+                 const planData = await call('portal_rrhh.api.timesheets.get_planes', { txt: found.custom_plan })
+                 if (planData && planData.length > 0) {
+                     // Prefer exact match if possible, but search 'txt' acts as filter.
+                     foundPlan = planData.find(p => p.name === found.custom_plan) || planData[0]
+                     if (foundPlan) planes.value.push(foundPlan) // Cache it in the list
+                 }
+             } catch (e) {
+                 console.error(e)
+             }
+         }
+
+         if (foundPlan) {
+             log.plan = { label: (foundPlan.n_plan_formativo ? `[${foundPlan.n_plan_formativo}] ` : '') + (foundPlan.custom_descripción_del_plan || foundPlan.name), value: foundPlan.name }
+         } else {
+             log.plan = found.custom_plan // Fallback to ID
+         }
+    }
+}
+
+const updateCourse = (log, val) => {
+    if (!val) return
+
+    const courseValue = (typeof val === 'object' && val?.value) ? val.value : val
+    const found = courses.value.find(c => c.name === courseValue)
+    
+    if (found) {
+        // Auto-fill Program
+        if (found.expediente) {
+             const foundProgram = programs.value.find(p => p.name === found.expediente)
+             // Set program
+             log.expediente = foundProgram 
+                ? { label: foundProgram.custom_num_de_expediente, value: foundProgram.name } 
+                : found.expediente
+             
+             // Auto-fill Plan (Recursive logic basically)
+             // If we found the program in list, we know its plan
+             // OR we look at course.custom_plan directly
+             
+             const planName = found.custom_plan || (foundProgram ? foundProgram.custom_plan : null)
+             
+             if (planName) {
+                 const foundPlan = planes.value.find(pl => pl.name === planName)
+                 log.plan = foundPlan 
+                    ? { label: foundPlan.custom_descripción_del_plan || foundPlan.name, value: foundPlan.name } 
+                    : planName
+             }
+        }
+    }
+}
+
 const formatDate = (date) => dayjs(date).format('DD/MM/YYYY')
 const formatDateShort = (date) => dayjs(date).format('DD/MM')
 
-const getStatusVariant = (status) => {
+// ... (This tool call is complex due to multiple distributed changes. I will use multi_replace for safety if I can, or replace_file_content if I am confident with ranges. Since it's scattered, I will use `replace_file_content` with a large range or `multi_replace`. I'll use `replace_file_content` to rewrite the script section for `getStatusColor` and `multi_replace` for the template parts or just `replace_file_content` for specific chunks. I will do script first.)
+
+// Script update
+const getStatusColor = (status) => {
     if (status === 'Submitted' || status === 'Aprobado') return 'green'
-    if (status === 'Draft' || status === 'Borrador') return 'gray'
+    if (status === 'Draft' || status === 'Borrador') return 'yellow' // Use yellow for Draft
     if (status === 'Rejected' || status === 'Rechazado') return 'red'
-    return 'blue'
+    return 'gray'
+}
+
+
+const deleteTimesheet = async (name) => {
+    if (!confirm(__('¿Estás seguro de que quieres eliminar este borrador?'))) return
+
+    try {
+        await call('portal_rrhh.api.timesheets.delete_timesheet', { name })
+        fetchTimesheets(true)
+    } catch (error) {
+        console.error(error)
+    }
+}
+
+const getStatusLabel = (status) => {
+    const map = {
+        'Draft': 'Borrador',
+        'Submitted': 'Validado', // Or 'Enviado' per user request, but Validado is common for Submitted
+        'Cancelled': 'Cancelado',
+        'Borrador': 'Borrador' // In case it's already translated
+    }
+    return map[status] || status
 }
 
 const createNewTimesheet = () => {
     currentTimesheet.value = { status: 'Borrador' }
-    // Set to current week
-    currentStartDate.value = dayjs().startOf('week').format('YYYY-MM-DD')
+    // Set to current week Monday
+    const startOfWeek = dayjs().startOf('week')
+    currentStartDate.value = startOfWeek.format('YYYY-MM-DD')
     logs.value = []
-    // Add one empty row for Monday
-    logs.value.push({ 
-        date: currentStartDate.value, 
-        hours: 0, 
-        sede: userSettings.value.default_sede ? { label: userSettings.value.default_sede_name, value: userSettings.value.default_sede } : null,
-        course: null, 
-        expediente: null 
-    })
+    
+    // Auto-fill Mon-Fri (0 is Sunday, 1 is Monday... 6 is Saturday)
+    // dayjs().day(1) is Monday.
+    // Loop 0 to 4 (Mon to Fri) relative to start (which in dayjs 'week' start depends on locale, but let's be explicit)
+    // Spanish locale starts week on Monday.
+    
+    // Let's iterate 0 to 4 (5 days) starting from currentStartDate (Monday)
+    for (let i = 0; i < 5; i++) {
+        logs.value.push({ 
+            date: startOfWeek.add(i, 'day').format('YYYY-MM-DD'), 
+            hours: 0, 
+            sede: userSettings.value.default_sede ? { label: userSettings.value.default_sede_name, value: userSettings.value.default_sede } : null,
+            course: null, 
+            expediente: null,
+            plan: null
+        })
+    }
+
     isNew.value = true
     viewMode.value = 'edit'
 }
@@ -430,16 +557,156 @@ const editTimesheet = async (name) => {
         const data = await call('portal_rrhh.api.timesheets.get_timesheet_details', { name })
         currentTimesheet.value = data
         currentStartDate.value = data.start_date
+        
+        // Extract unique IDs to fetch metadata for
+        const planIds = [...new Set((data.custom_sede_time_logs || []).map(l => l.plan).filter(Boolean))]
+        const progIds = [...new Set((data.custom_sede_time_logs || []).map(l => l.expediente).filter(Boolean))]
+        const courseIds = [...new Set((data.custom_sede_time_logs || []).map(l => l.course).filter(Boolean))]
+
+        // Helper to fetch details in parallel
+        // We can reuse get_planes/programs/courses but with ID filter? NO, they filter by txt/name match.
+        // We can just loop and fetch or use valid search.
+        // To be efficient, we might want a new backend method 'get_names' but let's stick to what we have. 
+        // We'll use the search endpoints. It's fine for a few items.
+        // Or better: Assume we need their full objects for the Autocomplete options.
+        
+        // FETCH METADATA for existing items so they display correctly
+        const fetchPromises = []
+        
+        // Fetches for Plans
+        if (planIds.length > 0) {
+             // Ideally we pass a list of names, but our API takes 'txt'.
+             // We'll just fetch each one? No, that's N requests.
+             // We'll assume the user isn't editing a massive timesheet with 50 different plans. Usually 1 or 2.
+             planIds.forEach(id => {
+                 fetchPromises.push(call('portal_rrhh.api.timesheets.get_planes', { txt: id }).then(res => {
+                     return res ? res.find(i => i.name === id) : null
+                 }))
+             })
+        }
+        
+        // Fetches for Programs
+        if (progIds.length > 0) {
+             progIds.forEach(id => {
+                 fetchPromises.push(call('portal_rrhh.api.timesheets.get_programs', { txt: id }).then(res => {
+                     return res ? res.find(i => i.name === id) : null
+                 }))
+             })
+        }
+        
+        // Fetches for Courses
+        if (courseIds.length > 0) {
+             courseIds.forEach(id => {
+                 fetchPromises.push(call('portal_rrhh.api.timesheets.get_courses', { txt: id }).then(res => {
+                     return res ? res.find(i => i.name === id) : null
+                 }))
+             })
+        }
+
+        const stats = await Promise.all(fetchPromises)
+        // Add unique non-null items to our lists
+        stats.filter(Boolean).forEach(item => {
+            if (item.n_plan_formativo !== undefined) { // Is Plan
+                if (!planes.value.find(p => p.name === item.name)) planes.value.push(item)
+            } else if (item.program_name !== undefined) { // Is Program
+                if (!programs.value.find(p => p.name === item.name)) programs.value.push(item)
+            } else if (item.course_name !== undefined) { // Is Course
+                 if (!courses.value.find(c => c.name === item.name)) courses.value.push(item)
+            }
+        })
+
         // Populate logs from custom_sede_time_logs
         logs.value = (data.custom_sede_time_logs || []).map(l => ({
             date: l.date,
             hours: l.hours,
             sede: l.sede && sedes.value.find(s => s.name === l.sede) ? { label: sedes.value.find(s => s.name === l.sede).room_name, value: l.sede } : l.sede,
-            course: courses.value.find(oc => oc.name === l.course) ? { label: courses.value.find(oc => oc.name === l.course).custom_display_identifier || courses.value.find(oc => oc.name === l.course).course_name, value: l.course } : l.course,
-            expediente: programs.value.find(op => op.name === l.expediente) ? { label: programs.value.find(op => op.name === l.expediente).custom_num_de_expediente, value: l.expediente } : l.expediente
+            course: courses.value.find(oc => oc.name === l.course) ? { label: (oc.custom_display_identifier ? `[${oc.custom_display_identifier}] ` : '') + (oc.course_name || oc.name), value: l.course, link_program: oc.expediente } : l.course,
+            expediente: programs.value.find(op => op.name === l.expediente) ? { label: (op.custom_num_de_expediente ? `[${op.custom_num_de_expediente}] ` : '') + (op.program_name || op.name), value: l.expediente, link_plan: op.custom_plan } : l.expediente,
+            plan: l.plan && planes.value.find(p => p.name === l.plan) ? { label: (planes.value.find(p => p.name === l.plan).n_plan_formativo ? `[${planes.value.find(p => p.name === l.plan).n_plan_formativo}] ` : '') + (planes.value.find(p => p.name === l.plan).custom_descripción_del_plan || planes.value.find(p => p.name === l.plan).name), value: l.plan } : l.plan 
         }))
         
         isNew.value = false
+        viewMode.value = 'edit'
+    } catch (error) {
+        console.error(error)
+    } finally {
+        loading.value = false
+    }
+}
+
+const duplicateTimesheet = async (name) => {
+    loading.value = true
+    try {
+        const data = await call('portal_rrhh.api.timesheets.get_timesheet_details', { name })
+        
+        // Set new state
+        currentTimesheet.value = { status: 'Borrador' }
+        isNew.value = true
+        
+        // Calculate date shift (Old Monday -> Current Monday)
+        const oldStart = dayjs(data.start_date)
+        const newStart = dayjs().startOf('week')
+        const diffDays = newStart.diff(oldStart, 'day')
+        
+        currentStartDate.value = newStart.format('YYYY-MM-DD')
+
+        // Extract unique IDs to fetch metadata for
+        const planIds = [...new Set((data.custom_sede_time_logs || []).map(l => l.plan).filter(Boolean))]
+        const progIds = [...new Set((data.custom_sede_time_logs || []).map(l => l.expediente).filter(Boolean))]
+        const courseIds = [...new Set((data.custom_sede_time_logs || []).map(l => l.course).filter(Boolean))]
+
+        // FETCH METADATA for existing items so they display correctly
+        const fetchPromises = []
+        
+        if (planIds.length > 0) {
+             planIds.forEach(id => {
+                 fetchPromises.push(call('portal_rrhh.api.timesheets.get_planes', { txt: id }).then(res => {
+                     return res ? res.find(i => i.name === id) : null
+                 }))
+             })
+        }
+        
+        if (progIds.length > 0) {
+             progIds.forEach(id => {
+                 fetchPromises.push(call('portal_rrhh.api.timesheets.get_programs', { txt: id }).then(res => {
+                     return res ? res.find(i => i.name === id) : null
+                 }))
+             })
+        }
+        
+        if (courseIds.length > 0) {
+             courseIds.forEach(id => {
+                 fetchPromises.push(call('portal_rrhh.api.timesheets.get_courses', { txt: id }).then(res => {
+                     return res ? res.find(i => i.name === id) : null
+                 }))
+             })
+        }
+
+        const stats = await Promise.all(fetchPromises)
+        // Add unique non-null items to our lists
+        stats.filter(Boolean).forEach(item => {
+            if (item.n_plan_formativo !== undefined) { 
+                if (!planes.value.find(p => p.name === item.name)) planes.value.push(item)
+            } else if (item.program_name !== undefined) { 
+                if (!programs.value.find(p => p.name === item.name)) programs.value.push(item)
+            } else if (item.course_name !== undefined) { 
+                 if (!courses.value.find(c => c.name === item.name)) courses.value.push(item)
+            }
+        })
+
+        // Populate logs with shifted dates
+        logs.value = (data.custom_sede_time_logs || []).map(l => {
+            const newDate = dayjs(l.date).add(diffDays, 'day').format('YYYY-MM-DD')
+            return {
+                date: newDate,
+                hours: l.hours,
+                sede: l.sede && sedes.value.find(s => s.name === l.sede) ? { label: sedes.value.find(s => s.name === l.sede).room_name, value: l.sede } : l.sede,
+                course: courses.value.find(oc => oc.name === l.course) ? { label: (oc.custom_display_identifier ? `[${oc.custom_display_identifier}] ` : '') + (oc.course_name || oc.name), value: l.course, link_program: oc.expediente } : l.course,
+                expediente: programs.value.find(op => op.name === l.expediente) ? { label: (op.custom_num_de_expediente ? `[${op.custom_num_de_expediente}] ` : '') + (op.program_name || op.name), value: l.expediente, link_plan: op.custom_plan } : l.expediente,
+                plan: l.plan && planes.value.find(p => p.name === l.plan) ? { label: (planes.value.find(p => p.name === l.plan).n_plan_formativo ? `[${planes.value.find(p => p.name === l.plan).n_plan_formativo}] ` : '') + (planes.value.find(p => p.name === l.plan).custom_descripción_del_plan || planes.value.find(p => p.name === l.plan).name), value: l.plan } : l.plan
+            }
+        })
+        
         viewMode.value = 'edit'
     } catch (error) {
         console.error(error)
@@ -461,7 +728,8 @@ const addLog = () => {
         hours: 0, 
         sede: userSettings.value.default_sede ? { label: userSettings.value.default_sede_name, value: userSettings.value.default_sede } : null,
         course: null, 
-        expediente: null 
+        expediente: null,
+        plan: null
     })
 }
 
@@ -470,6 +738,20 @@ const removeLog = (index) => {
 }
 
 const save = async (isSubmitting = false) => {
+    // Validation: Max 39 hours
+    if (totalHours.value > 39) {
+        alert(__('No se pueden registrar más de 39 horas semanales. Por favor, ajusta tus horas.'))
+        return false
+    }
+
+    // Validation: No empty rows (0 hours)
+    // We allow deleting rows, so if it's there, it must have hours.
+    const hasEmptyRows = logs.value.some(l => !l.hours || parseFloat(l.hours) <= 0)
+    if (hasEmptyRows) {
+        alert(__('No puedes guardar líneas con 0 horas. Por favor, elimina las líneas vacías o añade horas.'))
+        return false
+    }
+
     saving.value = true
     try {
         const payload = {
@@ -480,7 +762,8 @@ const save = async (isSubmitting = false) => {
                 ...l,
                 sede: l.sede?.value || l.sede,
                 course: l.course?.value || l.course,
-                expediente: l.expediente?.value || l.expediente
+                expediente: l.expediente?.value || l.expediente,
+                plan: l.plan?.value || l.plan
             }))
         }
         
@@ -491,6 +774,8 @@ const save = async (isSubmitting = false) => {
         return result
     } catch (e) {
         console.error(e)
+        const errorMsg = e.messages?.[0] || e.message || e
+        alert(errorMsg)
     } finally {
         saving.value = false
     }
@@ -502,7 +787,7 @@ const attemptSubmit = async () => {
     
     let warnings = []
     
-    if (now.isBefore(weekEnd) && totalHours.value < 40) {
+    if (now.isBefore(weekEnd) && totalHours.value < 39) {
         warnings.push("La semana aún no ha terminado y/o parece que no has completado una jornada completa.")
     }
 
@@ -511,6 +796,11 @@ const attemptSubmit = async () => {
         : __('Vas a cerrar y validar este registro de horas.')
         
     showWarningDialog.value = true
+}
+
+const goBackToList = () => {
+    viewMode.value = 'list'
+    fetchTimesheets(true)
 }
 
 const confirmSubmit = async () => {
@@ -538,3 +828,11 @@ onMounted(() => {
     fetchMetadata()
 })
 </script>
+
+<style scoped>
+:deep(input) {
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+</style>

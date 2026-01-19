@@ -3,28 +3,12 @@ from frappe import _
 from frappe.utils import today, getdate
 
 @frappe.whitelist(allow_guest=False)
+@frappe.whitelist(allow_guest=False)
 def get_employees_list(filters=None, limit=20, offset=0, search_term=None):
     """
     Get list of employees for the portal
     """
     try:
-        frappe.log_error(f"Searching employees: term={search_term}, user={frappe.session.user}", "Debug Employee Search")
-        # Verificar primero si el usuario tiene permisos de lectura en Employee
-        # Si no tiene permisos básicos, devolver lista vacía
-        try:
-            meta = frappe.get_meta("Employee")
-            role_permissions = frappe.permissions.get_role_permissions(meta, user=frappe.session.user)
-            if not role_permissions.get("read") and not role_permissions.get("select"):
-                # No tiene permisos básicos de lectura, devolver lista vacía
-                return {
-                    "employees": [],
-                    "total_count": 0,
-                    "has_more": False
-                }
-        except Exception:
-            # Si hay error verificando permisos, continuar pero filtrar después
-            pass
-        
         # Default filters: no status restriction to allow active/inactive employees
         default_filters = {}
 
@@ -50,10 +34,12 @@ def get_employees_list(filters=None, limit=20, offset=0, search_term=None):
                 "last_name": ["like", f"%{search_term}%"]
             }
 
-        # Determinar el page_length: si hay búsqueda, traer todo el universo de coincidencias
-        page_length = None if search_term else limit
+        # Determine page_length
+        page_length = int(limit) if limit else 20
+        start = int(offset) if offset else 0
 
-        # Usar frappe.get_list que respeta permisos automáticamente
+        # Fetch employees using standard frappe.get_list which handles permissions
+        # We do NOT use ignore_permissions=True here.
         employees = frappe.get_list(
             "Employee",
             filters=default_filters,
@@ -72,62 +58,43 @@ def get_employees_list(filters=None, limit=20, offset=0, search_term=None):
                 "personal_email",
                 "company_email",
                 "custom_dninie",
-                "attendance_device_id"
+                "attendance_device_id",
+                "user_id"
             ],
             limit_page_length=page_length,
-            limit_start=offset if page_length else 0,
-            order_by="employee_name asc",
-            ignore_permissions=True
+            limit_start=start,
+            order_by="employee_name asc"
         )
 
-        # Filtrar adicionalmente por permisos específicos de cada documento
-        # Esto es necesario porque frappe.get_list puede devolver documentos si el usuario
-        # tiene permisos generales en el DocType, pero debemos verificar permisos específicos
-        filtered_employees = []
-        for emp in employees:
-            try:
-                # Verificar permisos de lectura específicos para este empleado
-                if frappe.has_permission("Employee", "read", emp.get('name')):
-                    filtered_employees.append(emp)
-            except (frappe.PermissionError, frappe.DoesNotExistError):
-                # Si no tiene permisos o el documento no existe, omitir
-                continue
-            except Exception:
-                # Si hay algún error, verificar usando get_doc_permissions
-                try:
-                    emp_doc = frappe.get_doc("Employee", emp.get('name'))
-                    perms = frappe.permissions.get_doc_permissions(emp_doc)
-                    if perms.get("read"):
-                        filtered_employees.append(emp)
-                except:
-                    continue
+        # Total count for pagination
+        # We also respect permissions here by not using ignore_permissions
+        # However, get_count usually ignores permissions by default or is efficient?
+        # frappe.db.count doesn't respect permissions easily with complex filters.
+        # We use get_list with limit=None and count=True if available, or just len of unpaginated?
+        # For performance, usually get_all/get_list is used.
+        # Let's use a separate count query or if list is small... 
+        # But for pagination we need total.
+        # Replicating the previous logic but SAFE:
         
-        employees = filtered_employees
-
-        # Para el conteo total, también usar get_list y filtrar por permisos
+        # Ideally we want `frappe.db.count` but with permission filters. 
+        # Since we can't easily inject permission SQL into db.count, we might have to use get_list just for IDs if the dataset is smallish ( < 10k).
+        # OR we rely on "has_more" logic by fetching limit + 1.
+        
+        # Let's try to fetch total count using get_list with only 'name' field, unlimited?
+        # That might be heavy if there are 1000s of employees.
+        # Safe strict approach: 
         total_employees = frappe.get_list(
             "Employee",
             filters=default_filters,
             or_filters=or_filters,
             fields=["name"],
-            limit_page_length=None,
-            ignore_permissions=True
+            limit_page_length=None
         )
-        
-        # Filtrar el conteo total también por permisos
-        total_filtered = []
-        for emp in total_employees:
-            try:
-                if frappe.has_permission("Employee", "read", emp.get('name')):
-                    total_filtered.append(emp)
-            except:
-                continue
-        
-        total_count = len(total_filtered)
+        total_count = len(total_employees)
 
         # Format the data
         for employee in employees:
-            # Get user email if available
+            # Get user email
             if employee.get("user_id"):
                 user_email = frappe.db.get_value("User", employee["user_id"], "email")
                 if user_email:
@@ -147,11 +114,10 @@ def get_employees_list(filters=None, limit=20, offset=0, search_term=None):
             if employee.get("date_of_joining"):
                 employee["date_of_joining_formatted"] = frappe.utils.formatdate(employee["date_of_joining"])
 
-        frappe.log_error(f"Search Result: found={len(employees)}, total={total_count}", "Debug Employee Search")
         return {
             "employees": employees,
             "total_count": total_count,
-            "has_more": (offset + len(employees)) < total_count
+            "has_more": (start + len(employees)) < total_count
         }
 
     except Exception as e:

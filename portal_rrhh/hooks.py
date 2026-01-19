@@ -138,6 +138,14 @@ website_route_rules = [
 # 	}
 # }
 
+doc_events = {
+    "Job Offer": {
+        "on_update": "portal_rrhh.api.onboarding.create_onboarding_process_if_needed",
+        "on_submit": "portal_rrhh.api.onboarding.create_onboarding_process_if_needed",
+        "on_update_after_submit": "portal_rrhh.api.onboarding.create_onboarding_process_if_needed"
+    }
+}
+
 # Scheduled Tasks
 # ---------------
 

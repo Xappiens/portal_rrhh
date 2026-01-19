@@ -4,7 +4,12 @@
     :class="isSidebarCollapsed ? 'w-12' : 'w-[220px]'"
   >
     <div>
-      <UserDropdown class="p-2" :isCollapsed="isSidebarCollapsed" />
+      <UserDropdown
+        class="p-2"
+        :isCollapsed="isSidebarCollapsed"
+        :appName="appConfig?.app_name"
+        :appLogo="appConfig?.app_logo"
+      />
     </div>
     <div class="flex-1 overflow-y-auto">
       <div class="mb-3 flex flex-col">
@@ -144,46 +149,50 @@ const sidebarItems = createResource({
   auto: true,
 })
 
-const configSet = new Set(['AttendanceReport', 'Departamentos', 'Configuracion'])
+const appConfig = computed(() => sidebarItems.data?.app_config || {})
 
 const allViews = computed(() => {
-  const items = sidebarItems.data || []
+  const data = sidebarItems.data || {}
+  // Handle case where data might be the array (old format cache?) or new object
+  const items = Array.isArray(data) ? data : (data.items || [])
 
-  const main = []
-  const config = []
+  const sections = {}
+  const order = [] // To preserve section order of appearance
 
   for (const item of items) {
-    const icon = item.icon || iconMap[item.path] || 'circle'
-    const link = {
+    const sectionName = item.section || 'General'
+    
+    if (!sections[sectionName]) {
+      sections[sectionName] = []
+      order.push(sectionName)
+    }
+
+    let icon = item.icon
+    // Fallback to iconMap if no icon provided and path matches known routes
+    if (!icon && iconMap[item.path]) {
+      icon = iconMap[item.path]
+    }
+    // If still no icon, use default
+    if (!icon) icon = 'circle'
+
+    sections[sectionName].push({
       label: item.title,
-      icon,
-      to: item.path, // aquí usamos el nombre de ruta (router name)
-    }
-    if (configSet.has(item.path)) {
-      config.push(link)
-    } else {
-      main.push(link)
-    }
+      icon: icon,
+      to: item.path,
+    })
   }
 
-  return [
-    {
-      name: 'Todas las Vistas',
-      hideLabel: true,
-      opened: true,
-      views: main,
-    },
-    {
-      name: 'Configuración',
-      opened: true,
-      views: config,
-    },
-  ]
+  return order.map(name => ({
+    name,
+    hideLabel: name === 'General', // Hide label for generic section
+    opened: true,
+    views: sections[name]
+  }))
 })
 
 function toggleNotificationPanel() {
   // Implementar lógica de notificaciones
-  console.log('Toggle notifications')
+
 }
 
 function notificationsStore() {

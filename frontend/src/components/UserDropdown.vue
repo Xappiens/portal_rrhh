@@ -11,7 +11,13 @@
             : 'w-52 px-2 hover:bg-gray-200'
         "
       >
-        <PortalRRHHLogo />
+        <img
+          v-if="appLogo"
+          :src="appLogo"
+          class="h-8 w-auto object-contain"
+          alt="App Logo"
+        />
+        <PortalRRHHLogo v-else />
         <div
           class="flex flex-1 flex-col text-left duration-300 ease-in-out"
           :class="
@@ -21,7 +27,7 @@
           "
         >
           <div class="text-base font-medium leading-none text-gray-900">
-            Portal RRHH
+            {{ appName || 'Portal RRHH' }}
           </div>
           <div class="mt-1 text-sm leading-none text-gray-700">
             {{ usersStore().getUser('sessionUser').full_name }}
@@ -57,6 +63,14 @@ const props = defineProps({
   isCollapsed: {
     type: Boolean,
     default: false,
+  },
+  appName: {
+    type: String,
+    default: '',
+  },
+  appLogo: {
+    type: String,
+    default: '',
   },
 })
 
