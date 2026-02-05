@@ -74,6 +74,16 @@ const routes = [
     name: 'Onboarding',
     component: () => import('@/pages/Onboarding.vue'),
   },
+  {
+    path: '/departamentos',
+    name: 'Departamentos',
+    component: () => import('@/pages/Departamentos.vue'),
+  },
+  {
+    path: '/incentivos',
+    name: 'Incentivos',
+    component: () => import('@/pages/Incentivos.vue'),
+  },
 
   {
     path: '/ai-dashboard',

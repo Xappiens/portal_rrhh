@@ -9,24 +9,53 @@
       <div class="bg-gray-50 rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
         <div class="grid grid-cols-12 gap-4 items-end">
             <!-- From Date -->
-             <div class="col-span-6 md:col-span-5">
+            <div class="col-span-6 md:col-span-3">
                 <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Desde') }}</label>
                 <DatePicker 
                     v-model="filters.from_date"
                     class="w-full"
+                    :format-options="{ day: '2-digit', month: '2-digit', year: 'numeric' }"
+                    input-format="DD/MM/YYYY"
+                    :first-day-of-week="1"
+                    locale="es"
                 />
             </div>
             <!-- To Date -->
-             <div class="col-span-6 md:col-span-5">
+            <div class="col-span-6 md:col-span-3">
                 <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Hasta') }}</label>
                 <DatePicker 
                     v-model="filters.to_date"
                     class="w-full"
+                    :format-options="{ day: '2-digit', month: '2-digit', year: 'numeric' }"
+                    input-format="DD/MM/YYYY"
+                    :first-day-of-week="1"
+                    locale="es"
                 />
             </div>
-             <!-- Button -->
+            <!-- Reports To Filter -->
+            <div class="col-span-6 md:col-span-3">
+                <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Responsable') }}</label>
+                <Autocomplete
+                    :modelValue="selectedManager"
+                    :options="managerOptions"
+                    placeholder="Todos..."
+                    @update:modelValue="onManagerSelect"
+                />
+            </div>
+            <!-- Show All Toggle (HR only) -->
+            <div v-if="isHrUser" class="col-span-6 md:col-span-1 flex items-end pb-1">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input 
+                        type="checkbox" 
+                        v-model="filters.show_all"
+                        class="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-500"
+                    />
+                    <span class="text-xs font-medium text-gray-600 whitespace-nowrap">Ver todos</span>
+                </label>
+            </div>
+            <!-- Button -->
             <div class="col-span-12 md:col-span-2">
-                 <Button
+                <Button
                     variant="solid"
                     theme="gray"
                     class="w-full justify-center !bg-black !text-white hover:!bg-gray-800"
@@ -161,7 +190,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Button, DatePicker, call, Badge, FeatherIcon } from 'frappe-ui'
+import { Button, DatePicker, call, Badge, FeatherIcon, Autocomplete } from 'frappe-ui'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
 
@@ -171,21 +200,39 @@ const loading = ref(false)
 const anomalies = ref([])
 const selectedCategory = ref(null)
 const expandedEmployees = ref([])
+const managerOptions = ref([])
+const isHrUser = ref(false)
+const selectedManager = ref(null)
 
 const filters = ref({
-    // Default last 30 days
     from_date: dayjs().subtract(30, 'days').format('YYYY-MM-DD'),
-    to_date: dayjs().format('YYYY-MM-DD')
+    to_date: dayjs().format('YYYY-MM-DD'),
+    reports_to: '',
+    show_all: false
 })
 
-const stats = computed(() => {
-    return {
-        total: anomalies.value.length,
-        ghost: anomalies.value.filter(a => a.type === 'Ghost Employee').length,
-        missing: anomalies.value.filter(a => a.type === 'Missing Punch').length,
-        time: anomalies.value.filter(a => ['Excessive Continuous Work', 'No Break'].includes(a.type)).length,
-        absent: anomalies.value.filter(a => a.type === 'Absent').length
+// Handle manager selection
+function onManagerSelect(val) {
+    if (val && val.value) {
+        selectedManager.value = val
+        filters.value.reports_to = val.value
+    } else {
+        selectedManager.value = null
+        filters.value.reports_to = ''
     }
+}
+
+// Optimized stats calculation - single pass
+const stats = computed(() => {
+    const result = { total: 0, ghost: 0, missing: 0, time: 0, absent: 0 }
+    for (const a of anomalies.value) {
+        result.total++
+        if (a.type === 'Ghost Employee') result.ghost++
+        else if (a.type === 'Missing Punch') result.missing++
+        else if (a.type === 'Excessive Continuous Work' || a.type === 'No Break') result.time++
+        else if (a.type === 'Absent') result.absent++
+    }
+    return result
 })
 
 // Returns array of { employee: "Name", items: [...] }
@@ -230,21 +277,25 @@ const fetchAnomalies = async () => {
     loading.value = true
     try {
         const result = await call('portal_rrhh.api.attendance.get_attendance_anomalies', {
-            employee: null, // explicit null
             from_date: filters.value.from_date,
-            to_date: filters.value.to_date
+            to_date: filters.value.to_date,
+            reports_to: filters.value.reports_to || null,
+            show_all: filters.value.show_all ? 1 : 0
         })
         
         if (result && result.success) {
-            anomalies.value = result.data
+            anomalies.value = result.data || []
+            managerOptions.value = result.managers || []
+            isHrUser.value = result.is_hr_user || false
         } else {
             anomalies.value = []
+            console.error('Error fetching anomalies:', result?.message)
         }
     } catch (e) {
-        console.error(e)
+        console.error('Error fetching anomalies:', e)
+        anomalies.value = []
     } finally {
         loading.value = false
-        // Reset expanded, but keep category selected if it makes sense contextually
         expandedEmployees.value = []
     }
 }

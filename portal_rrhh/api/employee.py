@@ -30,29 +30,59 @@ def filter_by_permissions(documents, doctype):
     return filtered
 
 @frappe.whitelist()
-def get_employees(filters=None):
-    """Get list of employees with essential fields and companies from Job Offers - Optimized version"""
+def get_employees(filters=None, limit=None, offset=None):
+    """Get list of employees with essential fields and companies from Job Offers - Optimized version
+    
+    Args:
+        filters: JSON string with filter criteria
+        limit: Maximum number of records to return (for pagination)
+        offset: Number of records to skip (for pagination)
+    
+    Returns:
+        dict with 'data' (list of employees) and 'total' (total count for pagination)
+    """
+    import json as json_lib
+    
     # Parse filters if provided
     if filters and isinstance(filters, str):
-        import json
-        filters = json.loads(filters)
+        filters = json_lib.loads(filters)
+    
+    # Parse pagination params
+    limit_start = int(offset) if offset else 0
+    page_length = int(limit) if limit else None
 
     # Usar frappe.get_list para respetar permisos automáticamente
-    filters_dict = {"status": "Active"}
+    filters_dict = {}
+    or_filters = []
     
     # Aplicar filtros adicionales
     if filters:
+        # Búsqueda general por texto (nombre o DNI)
+        if filters.get('search_text'):
+            search_text = filters['search_text'].strip()
+            if search_text:
+                or_filters = [
+                    ["employee_name", "like", f"%{search_text}%"],
+                    ["custom_dninie", "like", f"%{search_text}%"]
+                ]
+        
         if filters.get('employee_name'):
             if isinstance(filters['employee_name'], list) and filters['employee_name'][0] == 'like':
                 filters_dict['employee_name'] = filters['employee_name']
             else:
-                filters_dict['employee_name'] = filters['employee_name']
+                filters_dict['employee_name'] = ["like", f"%{filters['employee_name']}%"]
         
         if filters.get('custom_dninie'):
             if isinstance(filters['custom_dninie'], list) and filters['custom_dninie'][0] == 'like':
                 filters_dict['custom_dninie'] = filters['custom_dninie']
             else:
-                filters_dict['custom_dninie'] = filters['custom_dninie']
+                filters_dict['custom_dninie'] = ["like", f"%{filters['custom_dninie']}%"]
+        
+        # Filtro por responsable (reports_to)
+        if filters.get('reports_to'):
+            reports_to_filter = filters['reports_to'].strip() if isinstance(filters['reports_to'], str) else str(filters['reports_to']).strip()
+            if reports_to_filter:
+                filters_dict['reports_to'] = reports_to_filter
 
     # Verificar primero si el usuario tiene permisos de lectura en Employee
     try:
@@ -60,15 +90,28 @@ def get_employees(filters=None):
         role_permissions = frappe.permissions.get_role_permissions(meta, user=frappe.session.user)
         if not role_permissions.get("read") and not role_permissions.get("select"):
             # No tiene permisos básicos de lectura, devolver lista vacía
-            return []
+            return {"data": [], "total": 0}
     except Exception:
         # Si hay error verificando permisos, continuar pero filtrar después
         pass
 
+    # Get total count first (without pagination) for UI
+    if or_filters:
+        # frappe.db.count doesn't support or_filters, so use get_list with count
+        count_result = frappe.get_list(
+            "Employee",
+            filters=filters_dict,
+            or_filters=or_filters,
+            fields=["count(name) as total"],
+            as_list=True
+        )
+        total_count = count_result[0][0] if count_result else 0
+    else:
+        total_count = frappe.db.count("Employee", filters=filters_dict)
+
     # Obtener empleados usando frappe.get_list que respeta permisos automáticamente
-    employees = frappe.get_list(
-        "Employee",
-        fields=[
+    list_kwargs = {
+        "fields": [
             "name",
             "employee_name",
             "company",
@@ -85,31 +128,18 @@ def get_employees(filters=None):
             "custom_no_seguridad_social",
             "image"
         ],
-        filters=filters_dict,
-        order_by="employee_name asc"
-    )
-
-    # Filtrar adicionalmente por permisos específicos de cada documento
-    filtered_employees = []
-    for emp in employees:
-        try:
-            # Verificar permisos de lectura específicos para este empleado
-            if frappe.has_permission("Employee", "read", emp.get('name')):
-                filtered_employees.append(emp)
-        except (frappe.PermissionError, frappe.DoesNotExistError):
-            # Si no tiene permisos o el documento no existe, omitir
-            continue
-        except Exception:
-            # Si hay algún error, verificar usando get_doc_permissions
-            try:
-                emp_doc = frappe.get_doc("Employee", emp.get('name'))
-                perms = frappe.permissions.get_doc_permissions(emp_doc)
-                if perms.get("read"):
-                    filtered_employees.append(emp)
-            except:
-                continue
+        "filters": filters_dict,
+        "order_by": "employee_name asc"
+    }
     
-    employees = filtered_employees
+    if or_filters:
+        list_kwargs["or_filters"] = or_filters
+    
+    if page_length:
+        list_kwargs["limit_start"] = limit_start
+        list_kwargs["limit_page_length"] = page_length
+    
+    employees = frappe.get_list("Employee", **list_kwargs)
 
     # Get all DNIs/NIEs for batch query
     employee_dnis = [emp.get('custom_dninie') for emp in employees if emp.get('custom_dninie')]
@@ -118,9 +148,10 @@ def get_employees(filters=None):
         # No employees with DNI, set default values
         for employee in employees:
             employee['companies'] = []
-            employee['status'] = 'Sin DNI'
-            employee['status_text'] = 'Sin DNI'
-        return employees
+            if not employee.get('custom_dninie'):
+                employee['status'] = 'Sin DNI'
+                employee['status_text'] = 'Sin DNI'
+        return {"data": employees, "total": total_count}
 
     # Obtener job offers usando frappe.get_list para respetar permisos
     job_offer_filters = {"custom_dninie": ["in", employee_dnis]}
@@ -209,7 +240,7 @@ def get_employees(filters=None):
         
         filtered_employees.append(employee)
 
-    return filtered_employees
+    return {"data": filtered_employees, "total": total_count}
 
 @frappe.whitelist()
 def get_employee(name):

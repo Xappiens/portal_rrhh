@@ -220,6 +220,9 @@ def submit_timesheet(name):
     if doc.docstatus == 1:
         return doc.as_dict()
 
+    doc.status = "Submitted"
+    doc.flags.ignore_validate = True
+    doc.flags.ignore_mandatory = True
     doc.submit()
     return doc.as_dict()
 
@@ -255,6 +258,7 @@ def get_planes(txt=None, limit=50):
     or_filters = None
     if txt:
         or_filters = {
+            "name": ["like", f"%{txt}%"],
             "n_plan_formativo": ["like", f"%{txt}%"],
             "custom_descripción_del_plan": ["like", f"%{txt}%"],
             "plan_formativo": ["like", f"%{txt}%"] 
@@ -282,6 +286,7 @@ def get_courses(txt=None, program=None, plan=None, limit=50):
 
     if txt:
         or_filters = {
+            "name": ["like", f"%{txt}%"],
             "custom_display_identifier": ["like", f"%{txt}%"],
             "course_name": ["like", f"%{txt}%"]
         }
@@ -305,6 +310,7 @@ def get_programs(txt=None, plan=None, limit=50):
         
     if txt:
         or_filters = {
+            "name": ["like", f"%{txt}%"],
             "custom_num_de_expediente": ["like", f"%{txt}%"],
             "program_name": ["like", f"%{txt}%"]
         }

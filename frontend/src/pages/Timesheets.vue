@@ -133,12 +133,15 @@
                 </div>
                 <!-- Plan Formativo -->
                 <div class="col-span-3">
-                    <Autocomplete
+                    <SearchableAutocomplete
                         v-model="log.plan"
-                        :options="planes.map(p => ({ 
-                            label: (p.n_plan_formativo ? `[${p.n_plan_formativo}] ` : '') + (p.custom_descripción_del_plan || p.name), 
-                            value: p.name 
-                        }))"
+                        :options="[
+                            { label: '📋 Todos (General)', value: '__todos__' },
+                            ...planes.map(p => ({ 
+                                label: (p.n_plan_formativo ? `[${p.n_plan_formativo}] ` : '') + (p.custom_descripción_del_plan || p.name), 
+                                value: p.name 
+                            }))
+                        ]"
                         :disabled="isReadOnly"
                         placeholder="Buscar Plan..."
                         @update:query="(q) => searchPlanes(q)"
@@ -147,13 +150,16 @@
                 </div>
                 <!-- Expediente -->
                  <div class="col-span-2" @click.capture="searchPrograms('', log.plan)">
-                    <Autocomplete
+                    <SearchableAutocomplete
                         v-model="log.expediente"
-                        :options="programs.map(p => ({ 
-                            label: (p.custom_num_de_expediente ? `[${p.custom_num_de_expediente}] ` : '') + (p.program_name || p.name), 
-                            value: p.name, 
-                            link_plan: p.custom_plan 
-                        }))"
+                        :options="[
+                            { label: '📋 Todos', value: '__todos__' },
+                            ...programs.map(p => ({ 
+                                label: (p.custom_num_de_expediente ? `[${p.custom_num_de_expediente}] ` : '') + (p.program_name || p.name), 
+                                value: p.name, 
+                                link_plan: p.custom_plan 
+                            }))
+                        ]"
                         :disabled="isReadOnly"
                         placeholder="Buscar Exp..."
                         @update:query="(q) => searchPrograms(q, log.plan)"
@@ -162,14 +168,17 @@
                 </div>
                 <!-- Curso -->
                  <div class="col-span-3" @click.capture="searchCourses('', log.expediente, log.plan)">
-                     <Autocomplete
+                     <SearchableAutocomplete
                         v-model="log.course"
-                        :options="courses.map(c => ({ 
-                            label: (c.custom_display_identifier ? `[${c.custom_display_identifier}] ` : '') + (c.course_name || c.name), 
-                            value: c.name,
-                            link_program: c.expediente,
-                            link_plan: c.custom_plan
-                        }))"
+                        :options="[
+                            { label: '📋 Todos', value: '__todos__' },
+                            ...courses.map(c => ({ 
+                                label: (c.custom_display_identifier ? `[${c.custom_display_identifier}] ` : '') + (c.course_name || c.name), 
+                                value: c.name,
+                                link_program: c.expediente,
+                                link_plan: c.custom_plan
+                            }))
+                        ]"
                         :disabled="isReadOnly"
                         placeholder="Buscar Curso..."
                         @update:query="(q) => searchCourses(q, log.expediente, log.plan)"
@@ -249,7 +258,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { createResource, Button, Badge, call, Dialog, FeatherIcon, Autocomplete, Input, ListItem } from 'frappe-ui'
+import SearchableAutocomplete from '../components/SearchableAutocomplete.vue'
+import { createResource, Button, Badge, call, Dialog, FeatherIcon, Input, ListItem } from 'frappe-ui'
 import { useDebounceFn } from '@vueuse/core'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
@@ -378,7 +388,7 @@ const searchCourses = debounce(async (query, program, plan) => {
             txt: query, 
             program: programName,
             plan: planName,
-            limit: 5000
+            limit: 50
         })
         courses.value = data || []
     } catch (e) {
@@ -393,7 +403,7 @@ const searchPrograms = debounce(async (query, plan) => {
         const data = await call('portal_rrhh.api.timesheets.get_programs', { 
             txt: query,
             plan: planName,
-            limit: 5000
+            limit: 50
         })
         programs.value = data || []
     } catch (e) {
@@ -403,7 +413,7 @@ const searchPrograms = debounce(async (query, plan) => {
 
 const searchPlanes = debounce(async (query) => {
     try {
-        const data = await call('portal_rrhh.api.timesheets.get_planes', { txt: query, limit: 5000 })
+        const data = await call('portal_rrhh.api.timesheets.get_planes', { txt: query, limit: 50 })
         planes.value = data || []
     } catch (e) {
         console.error(e)
@@ -411,12 +421,26 @@ const searchPlanes = debounce(async (query) => {
 }, 300)
 
 const updatePlan = (log, val) => {
+    // Si selecciona "Todos", limpiar el valor y los hijos
+    if (val?.value === '__todos__' || val === '__todos__') {
+        log.plan = { label: '📋 Todos (General)', value: '__todos__' }
+        log.expediente = { label: '📋 Todos', value: '__todos__' }
+        log.course = { label: '📋 Todos', value: '__todos__' }
+        return
+    }
     // Reset children if plan changes
     log.expediente = null
     log.course = null
 }
 
 const updateProgram = async (log, val) => {
+    // Si selecciona "Todos", limpiar el valor y el curso
+    if (val?.value === '__todos__' || val === '__todos__') {
+        log.expediente = { label: '📋 Todos', value: '__todos__' }
+        log.course = { label: '📋 Todos', value: '__todos__' }
+        return
+    }
+    
     // Clear course because program changed
     log.course = null
     
@@ -458,6 +482,12 @@ const updateProgram = async (log, val) => {
 }
 
 const updateCourse = (log, val) => {
+    // Si selecciona "Todos", solo establecer el valor
+    if (val?.value === '__todos__' || val === '__todos__') {
+        log.course = { label: '📋 Todos', value: '__todos__' }
+        return
+    }
+    
     if (!val) return
 
     const courseValue = (typeof val === 'object' && val?.value) ? val.value : val
@@ -616,14 +646,30 @@ const editTimesheet = async (name) => {
         })
 
         // Populate logs from custom_sede_time_logs
-        logs.value = (data.custom_sede_time_logs || []).map(l => ({
-            date: l.date,
-            hours: l.hours,
-            sede: l.sede && sedes.value.find(s => s.name === l.sede) ? { label: sedes.value.find(s => s.name === l.sede).room_name, value: l.sede } : l.sede,
-            course: courses.value.find(oc => oc.name === l.course) ? { label: (oc.custom_display_identifier ? `[${oc.custom_display_identifier}] ` : '') + (oc.course_name || oc.name), value: l.course, link_program: oc.expediente } : l.course,
-            expediente: programs.value.find(op => op.name === l.expediente) ? { label: (op.custom_num_de_expediente ? `[${op.custom_num_de_expediente}] ` : '') + (op.program_name || op.name), value: l.expediente, link_plan: op.custom_plan } : l.expediente,
-            plan: l.plan && planes.value.find(p => p.name === l.plan) ? { label: (planes.value.find(p => p.name === l.plan).n_plan_formativo ? `[${planes.value.find(p => p.name === l.plan).n_plan_formativo}] ` : '') + (planes.value.find(p => p.name === l.plan).custom_descripción_del_plan || planes.value.find(p => p.name === l.plan).name), value: l.plan } : l.plan 
-        }))
+        logs.value = (data.custom_sede_time_logs || []).map(l => {
+            const foundSede = l.sede ? sedes.value.find(s => s.name === l.sede) : null
+            const foundCourse = l.course ? courses.value.find(c => c.name === l.course) : null
+            const foundProgram = l.expediente ? programs.value.find(p => p.name === l.expediente) : null
+            const foundPlan = l.plan ? planes.value.find(p => p.name === l.plan) : null
+            
+            // Helper para mostrar "Todos" cuando el campo está vacío
+            const todosOption = (label) => ({ label: `📋 ${label}`, value: '__todos__' })
+            
+            return {
+                date: l.date,
+                hours: l.hours,
+                sede: foundSede ? { label: foundSede.room_name, value: l.sede } : l.sede,
+                course: l.course 
+                    ? (foundCourse ? { label: (foundCourse.custom_display_identifier ? `[${foundCourse.custom_display_identifier}] ` : '') + (foundCourse.course_name || foundCourse.name), value: l.course, link_program: foundCourse.expediente } : l.course)
+                    : todosOption('Todos'),
+                expediente: l.expediente 
+                    ? (foundProgram ? { label: (foundProgram.custom_num_de_expediente ? `[${foundProgram.custom_num_de_expediente}] ` : '') + (foundProgram.program_name || foundProgram.name), value: l.expediente, link_plan: foundProgram.custom_plan } : l.expediente)
+                    : todosOption('Todos'),
+                plan: l.plan 
+                    ? (foundPlan ? { label: (foundPlan.n_plan_formativo ? `[${foundPlan.n_plan_formativo}] ` : '') + (foundPlan.custom_descripción_del_plan || foundPlan.name), value: l.plan } : l.plan)
+                    : todosOption('Todos (General)')
+            }
+        })
         
         isNew.value = false
         viewMode.value = 'edit'
@@ -697,13 +743,27 @@ const duplicateTimesheet = async (name) => {
         // Populate logs with shifted dates
         logs.value = (data.custom_sede_time_logs || []).map(l => {
             const newDate = dayjs(l.date).add(diffDays, 'day').format('YYYY-MM-DD')
+            const foundSede = l.sede ? sedes.value.find(s => s.name === l.sede) : null
+            const foundCourse = l.course ? courses.value.find(c => c.name === l.course) : null
+            const foundProgram = l.expediente ? programs.value.find(p => p.name === l.expediente) : null
+            const foundPlan = l.plan ? planes.value.find(p => p.name === l.plan) : null
+            
+            // Helper para mostrar "Todos" cuando el campo está vacío
+            const todosOption = (label) => ({ label: `📋 ${label}`, value: '__todos__' })
+            
             return {
                 date: newDate,
                 hours: l.hours,
-                sede: l.sede && sedes.value.find(s => s.name === l.sede) ? { label: sedes.value.find(s => s.name === l.sede).room_name, value: l.sede } : l.sede,
-                course: courses.value.find(oc => oc.name === l.course) ? { label: (oc.custom_display_identifier ? `[${oc.custom_display_identifier}] ` : '') + (oc.course_name || oc.name), value: l.course, link_program: oc.expediente } : l.course,
-                expediente: programs.value.find(op => op.name === l.expediente) ? { label: (op.custom_num_de_expediente ? `[${op.custom_num_de_expediente}] ` : '') + (op.program_name || op.name), value: l.expediente, link_plan: op.custom_plan } : l.expediente,
-                plan: l.plan && planes.value.find(p => p.name === l.plan) ? { label: (planes.value.find(p => p.name === l.plan).n_plan_formativo ? `[${planes.value.find(p => p.name === l.plan).n_plan_formativo}] ` : '') + (planes.value.find(p => p.name === l.plan).custom_descripción_del_plan || planes.value.find(p => p.name === l.plan).name), value: l.plan } : l.plan
+                sede: foundSede ? { label: foundSede.room_name, value: l.sede } : l.sede,
+                course: l.course 
+                    ? (foundCourse ? { label: (foundCourse.custom_display_identifier ? `[${foundCourse.custom_display_identifier}] ` : '') + (foundCourse.course_name || foundCourse.name), value: l.course, link_program: foundCourse.expediente } : l.course)
+                    : todosOption('Todos'),
+                expediente: l.expediente 
+                    ? (foundProgram ? { label: (foundProgram.custom_num_de_expediente ? `[${foundProgram.custom_num_de_expediente}] ` : '') + (foundProgram.program_name || foundProgram.name), value: l.expediente, link_plan: foundProgram.custom_plan } : l.expediente)
+                    : todosOption('Todos'),
+                plan: l.plan 
+                    ? (foundPlan ? { label: (foundPlan.n_plan_formativo ? `[${foundPlan.n_plan_formativo}] ` : '') + (foundPlan.custom_descripción_del_plan || foundPlan.name), value: l.plan } : l.plan)
+                    : todosOption('Todos (General)')
             }
         })
         
@@ -754,6 +814,12 @@ const save = async (isSubmitting = false) => {
 
     saving.value = true
     try {
+        // Helper para convertir __todos__ a null
+        const convertTodos = (val) => {
+            const v = val?.value || val
+            return v === '__todos__' ? null : v
+        }
+        
         const payload = {
             name: currentTimesheet.value.name,
             start_date: currentStartDate.value,
@@ -761,9 +827,9 @@ const save = async (isSubmitting = false) => {
             logs: logs.value.map(l => ({
                 ...l,
                 sede: l.sede?.value || l.sede,
-                course: l.course?.value || l.course,
-                expediente: l.expediente?.value || l.expediente,
-                plan: l.plan?.value || l.plan
+                course: convertTodos(l.course),
+                expediente: convertTodos(l.expediente),
+                plan: convertTodos(l.plan)
             }))
         }
         

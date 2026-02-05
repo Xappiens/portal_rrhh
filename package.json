@@ -1,0 +1,8 @@
+{
+  "name": "portal_rrhh",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "cd frontend && yarn build && cd .. && python3 update_references.py"
+  }
+}

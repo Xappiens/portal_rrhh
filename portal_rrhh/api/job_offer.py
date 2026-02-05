@@ -70,6 +70,52 @@ def get_job_offer(name):
         frappe.throw(_("Job Offer not found"), frappe.DoesNotExistError)
 
 @frappe.whitelist()
+def get_job_applicant_for_employee(employee_name):
+    """Get job applicant linked to an employee"""
+    try:
+        # Verificar primero que el usuario tenga permisos para ver el empleado
+        try:
+            employee = frappe.get_doc("Employee", employee_name)
+            if not frappe.has_permission("Employee", "read", employee):
+                frappe.throw(_("No tienes permisos para ver este empleado"), frappe.PermissionError)
+        except frappe.DoesNotExistError:
+            return None
+        
+        # Primero intentar obtener el job_applicant directamente del empleado
+        job_applicant = employee.get('job_applicant')
+        if job_applicant:
+            return job_applicant
+        
+        # Si no existe, intentar buscarlo por DNI
+        employee_dni = employee.get('custom_dninie')
+        if employee_dni:
+            job_applicant = frappe.db.get_value("Job Applicant", {"custom_dninie": employee_dni}, "name")
+            if job_applicant:
+                return job_applicant
+        
+        # Si tampoco existe por DNI, intentar buscarlo por email
+        emails = []
+        if employee.get('personal_email'):
+            emails.append(employee.personal_email)
+        if employee.get('company_email'):
+            emails.append(employee.company_email)
+        if employee.get('prefered_email'):
+            emails.append(employee.prefered_email)
+        
+        for email in emails:
+            if email:
+                job_applicant = frappe.db.get_value("Job Applicant", {"email_id": email}, "name")
+                if job_applicant:
+                    return job_applicant
+        
+        return None
+    except frappe.PermissionError:
+        raise
+    except Exception as e:
+        frappe.log_error(f"Error en get_job_applicant_for_employee: {str(e)}", "Job Offer API Error")
+        return None
+
+@frappe.whitelist()
 def get_contratacion_stats():
     """Get statistics for contratacion dashboard"""
     # Usar frappe.get_list para respetar permisos automáticamente

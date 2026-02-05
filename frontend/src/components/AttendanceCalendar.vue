@@ -37,16 +37,26 @@
                     
                     <!-- Data content -->
                     <div v-if="day.inMonth && day.data" class="w-full text-center">
+                        <!-- Hours worked -->
                         <div v-if="day.data.hours > 0" class="mt-1">
                             <span class="text-lg font-bold text-gray-900">{{ day.data.hours }}h</span>
                         </div>
+                        
+                        <!-- Leave/Holiday status -->
                         <div v-if="day.data.status" class="mt-1">
-                             <Badge v-for="(s, i) in formatStatus(day.data.status)" :key="i" size="sm" variant="subtle" theme="orange" class="mb-0.5 mx-auto block max-w-full truncate">
+                            <Badge v-for="(s, i) in formatStatus(day.data.status)" :key="i" size="sm" variant="subtle" theme="orange" class="mb-0.5 mx-auto block max-w-full truncate">
                                 {{ s }}
-                             </Badge>
+                            </Badge>
                         </div>
-                        <div v-if="day.data.hours === 0 && !day.data.status && isWeekday(day.date)" class="mt-2">
-                             <span class="h-1.5 w-1.5 rounded-full bg-red-400 inline-block"></span>
+                        
+                        <!-- Anomaly indicator -->
+                        <div v-if="day.data.anomaly" class="mt-2">
+                            <Tooltip :text="day.data.anomaly_desc || getAnomalyText(day.data.anomaly)">
+                                <span 
+                                    class="h-2.5 w-2.5 rounded-full inline-block cursor-help"
+                                    :class="getAnomalyColor(day.data.anomaly)"
+                                ></span>
+                            </Tooltip>
                         </div>
                     </div>
                 </div>
@@ -72,18 +82,28 @@
                         {{ day.dayNum }}
                     </span>
 
-                     <!-- Data content -->
+                    <!-- Data content -->
                     <div v-if="day.inMonth && day.data" class="w-full text-center">
+                        <!-- Hours worked -->
                         <div v-if="day.data.hours > 0" class="mt-1">
                             <span class="text-lg font-bold text-gray-900">{{ day.data.hours }}h</span>
                         </div>
+                        
+                        <!-- Leave/Holiday status -->
                         <div v-if="day.data.status" class="mt-1">
-                             <Badge v-for="(s, i) in formatStatus(day.data.status)" :key="i" size="sm" variant="subtle" theme="orange" class="mb-0.5 mx-auto block max-w-full truncate">
+                            <Badge v-for="(s, i) in formatStatus(day.data.status)" :key="i" size="sm" variant="subtle" theme="orange" class="mb-0.5 mx-auto block max-w-full truncate">
                                 {{ s }}
-                             </Badge>
+                            </Badge>
                         </div>
-                         <div v-if="day.data.hours === 0 && !day.data.status && isWeekday(day.date)" class="mt-2">
-                             <span class="h-1.5 w-1.5 rounded-full bg-red-400 inline-block"></span>
+                        
+                        <!-- Anomaly indicator -->
+                        <div v-if="day.data.anomaly" class="mt-2">
+                            <Tooltip :text="day.data.anomaly_desc || getAnomalyText(day.data.anomaly)">
+                                <span 
+                                    class="h-2.5 w-2.5 rounded-full inline-block cursor-help"
+                                    :class="getAnomalyColor(day.data.anomaly)"
+                                ></span>
+                            </Tooltip>
                         </div>
                     </div>
                 </div>
@@ -102,7 +122,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { Badge, call, FeatherIcon } from 'frappe-ui'
+import { Badge, call, FeatherIcon, Tooltip } from 'frappe-ui'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
 
@@ -134,6 +154,27 @@ const formatStatus = (statusStr) => statusStr ? statusStr.split(',').map(s => s.
 const isWeekday = (date) => {
     const d = dayjs(date).day()
     return d !== 0 && d !== 6 
+}
+
+// Anomaly helpers
+const getAnomalyColor = (anomaly) => {
+    const colors = {
+        'missing_out': 'bg-orange-400',   // Falta salida
+        'missing_in': 'bg-orange-400',    // Falta entrada
+        'no_break': 'bg-yellow-400',      // Sin descanso
+        'no_checkin': 'bg-red-400'        // Sin fichaje
+    }
+    return colors[anomaly] || 'bg-red-400'
+}
+
+const getAnomalyText = (anomaly) => {
+    const texts = {
+        'missing_out': 'Falta fichaje de salida',
+        'missing_in': 'Falta fichaje de entrada',
+        'no_break': 'Jornada > 6h sin descanso',
+        'no_checkin': 'Sin fichaje ni justificación'
+    }
+    return texts[anomaly] || 'Anomalía detectada'
 }
 
 function generateCalendarDays(monthStart) {

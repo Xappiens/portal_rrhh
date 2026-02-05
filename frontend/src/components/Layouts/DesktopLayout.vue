@@ -47,8 +47,8 @@ const pageConfigs = {
   },
   'Contratacion': {
     title: 'Contratación',
-    actionButton: 'Nuevo Contrato',
-    actionIcon: 'plus'
+    actionButton: '',
+    actionIcon: ''
   },
   'Empleados': {
     title: 'Empleados',
@@ -91,9 +91,9 @@ const pageConfigs = {
     actionIcon: 'file-text'
   },
   'Departamentos': {
-    title: 'Departamentos',
-    actionButton: 'Nuevo Departamento',
-    actionIcon: 'plus'
+    title: 'Mi Equipo',
+    actionButton: '',
+    actionIcon: ''
   },
   'Configuracion': {
     title: 'Configuración',

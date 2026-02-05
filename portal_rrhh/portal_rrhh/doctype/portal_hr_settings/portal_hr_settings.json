@@ -1,0 +1,73 @@
+{
+    "actions": [],
+    "creation": "2025-12-28 20:05:00.000000",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "field_order": [
+        "app_name",
+        "app_route",
+        "app_icon",
+        "app_logo",
+        "section_break_sidebar",
+        "sidebar_items"
+    ],
+    "fields": [
+        {
+            "fieldname": "app_name",
+            "fieldtype": "Data",
+            "label": "App Name",
+            "limit": 140
+        },
+        {
+            "fieldname": "app_route",
+            "fieldtype": "Data",
+            "label": "Home Route"
+        },
+        {
+            "fieldname": "app_icon",
+            "fieldtype": "Data",
+            "label": "App Icon (Feather Name)"
+        },
+        {
+            "fieldname": "app_logo",
+            "fieldtype": "Attach Image",
+            "label": "App Logo"
+        },
+        {
+            "fieldname": "section_break_sidebar",
+            "fieldtype": "Section Break",
+            "label": "Sidebar Configuration"
+        },
+        {
+            "fieldname": "sidebar_items",
+            "fieldtype": "Table",
+            "label": "Sidebar Items",
+            "options": "Portal HR Sidebar Item"
+        }
+    ],
+    "issingle": 1,
+    "links": [],
+    "modified": "2025-12-28 20:05:00.000000",
+    "modified_by": "Administrator",
+    "module": "Portal RRHH",
+    "name": "Portal HR Settings",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "email": 1,
+            "print": 1,
+            "read": 1,
+            "role": "System Manager",
+            "share": 1,
+            "write": 1
+        },
+        {
+            "read": 1,
+            "role": "All"
+        }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": []
+}

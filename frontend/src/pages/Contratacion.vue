@@ -1,6 +1,23 @@
 <template>
   <div class="h-full bg-gray-50 flex flex-col overflow-hidden">
 
+    <!-- Información sobre nuevo procedimiento -->
+    <div class="mx-6 mt-4 mb-4">
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="flex items-start">
+          <FeatherIcon name="info" class="h-5 w-5 text-blue-600 mr-3 mt-0.5 flex-shrink-0" />
+          <div class="flex-1">
+            <h4 class="text-sm font-semibold text-blue-900 mb-1">Nuevo Procedimiento de Creación</h4>
+            <p class="text-sm text-blue-800">
+              Este es el nuevo procedimiento para crear nuevas Hojas de Contratación (HC) y Anexos. 
+              Por favor, utiliza esta página para crear todos los documentos relacionados con contratación, 
+              asegurando que se vinculen correctamente al empleado correspondiente.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Filters Section -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 mx-6 mb-6 flex-shrink-0">
       <div class="px-4 py-3">
@@ -143,6 +160,60 @@
             </div>
           </div>
 
+          <!-- Búsqueda por Responsable -->
+          <div class="flex-1 relative">
+            <div class="relative">
+              <Input
+                v-model="reportsToSearchText"
+                type="text"
+                placeholder="Buscar por responsable..."
+                variant="outline"
+                size="sm"
+                @input="onReportsToSearchInput"
+                @focus="onReportsToFocus"
+                @blur="handleReportsToBlur"
+                @keydown.enter.prevent="handleReportsToEnter"
+                @keydown.escape="showReportsToDropdown = false"
+                @keydown.down.prevent="navigateReportsToDropdown(1)"
+                @keydown.up.prevent="navigateReportsToDropdown(-1)"
+              >
+                <template #prefix>
+                  <FeatherIcon name="user" class="h-4 text-gray-400" />
+                </template>
+              </Input>
+              <button
+                v-if="searchFilters.reportsTo"
+                @click="clearReportsTo"
+                class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                type="button"
+              >
+                <FeatherIcon name="x" class="h-4" />
+              </button>
+            </div>
+            <!-- Dropdown con opciones filtradas -->
+            <div
+              v-if="showReportsToDropdown && filteredReportsTo.length > 0"
+              class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+            >
+              <div class="p-2">
+                <div class="text-xs text-gray-500 px-2 py-1 mb-1 font-semibold">
+                  Seleccionar responsable ({{ filteredReportsTo.length }} resultados):
+                </div>
+                <div
+                  v-for="(reportsTo, index) in filteredReportsTo"
+                  :key="reportsTo.value"
+                  @mousedown.prevent="selectReportsTo(reportsTo)"
+                  :class="[
+                    'px-4 py-2 cursor-pointer border-b border-gray-100 last:border-b-0',
+                    index === highlightedReportsToIndex ? 'bg-blue-100' : 'hover:bg-blue-50'
+                  ]"
+                >
+                  <div class="font-medium text-gray-900">{{ reportsTo.label }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Botón Limpiar Filtros -->
           <div class="flex-shrink-0">
             <Button
@@ -179,7 +250,15 @@
               <FeatherIcon name="maximize-2" class="h-4 w-4" />
             </button>
           </div>
-          <h3 v-else class="text-sm font-medium text-gray-900">Empleados</h3>
+          <div v-else class="flex items-center justify-between w-full">
+            <h3 class="text-sm font-medium text-gray-900">Empleados</h3>
+            <div class="flex items-center space-x-2">
+              <span class="text-xs text-gray-500">
+                {{ filteredEmployees.length }}{{ isLoadingMore ? '+' : '' }} de {{ totalEmployees }}
+              </span>
+              <FeatherIcon v-if="isLoadingMore" name="loader" class="h-3 w-3 animate-spin text-blue-500" />
+            </div>
+          </div>
         </div>
         <div class="overflow-y-auto flex-1">
           <div v-if="loadingEmployees" class="p-4 text-center text-gray-500">
@@ -336,14 +415,24 @@
           <h3 class="text-sm font-medium text-gray-900">
             {{ selectedEmployee ? `Hojas de Contratación - ${selectedEmployee.employee_name}` : 'Selecciona un empleado' }}
           </h3>
-          <button
-            v-if="isEmployeeListCollapsed && selectedEmployee"
-            @click="expandEmployeeList"
-            class="flex items-center space-x-2 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-md"
-          >
-            <FeatherIcon name="users" class="h-4 w-4" />
-            <span>Mostrar empleados</span>
-          </button>
+          <div v-if="selectedEmployee" class="flex items-center space-x-2">
+            <button
+              @click="createNewJobOffer"
+              class="flex items-center space-x-2 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+              title="Crear nueva HC para este empleado"
+            >
+              <FeatherIcon name="plus" class="h-4 w-4" />
+              <span>Nueva HC</span>
+            </button>
+            <button
+              v-if="isEmployeeListCollapsed"
+              @click="expandEmployeeList"
+              class="flex items-center space-x-2 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-md"
+            >
+              <FeatherIcon name="users" class="h-4 w-4" />
+              <span>Mostrar empleados</span>
+            </button>
+          </div>
         </div>
         <div class="overflow-y-auto flex-1">
           <div v-if="!selectedEmployee" class="p-8 text-center text-gray-500">
@@ -370,7 +459,18 @@
                 <div class="flex-1">
                   <div class="flex items-center space-x-3 mb-3">
                     <div class="flex-1">
-                      <h4 class="text-base font-semibold text-gray-900">{{ jobOffer.designation || 'Sin título' }}</h4>
+                      <div class="flex items-center space-x-2">
+                        <h4 class="text-base font-semibold text-gray-900">{{ jobOffer.designation || 'Sin título' }}</h4>
+                        <button
+                          v-if="jobOffer.name"
+                          @click="createNewModificacionRRHH(jobOffer.name, $event)"
+                          class="flex items-center space-x-1 px-2 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors"
+                          title="Crear nuevo anexo para esta hoja de contratación"
+                        >
+                          <FeatherIcon name="plus" class="h-3 w-3" />
+                          <span>Nuevo Anexo</span>
+                        </button>
+                      </div>
                       <a
                         v-if="jobOffer.name"
                         @click="openFormInNewTab('Job Offer', jobOffer.name, $event)"
@@ -589,7 +689,7 @@
 </template>
 
 <script setup>
-import { FeatherIcon, Button, Badge, Card, createResource } from 'frappe-ui'
+import { FeatherIcon, Button, Badge, Card, createResource, Input } from 'frappe-ui'
 import { ref, computed, watch, onMounted } from 'vue'
 
 
@@ -601,7 +701,8 @@ const searchFilters = ref({
   employeeName: '',
   dninie: '',
   provincia: '',
-  company: ''
+  company: '',
+  reportsTo: ''
 })
 
 // Autocomplete states for provincia
@@ -618,10 +719,25 @@ const showCompanyDropdown = ref(false)
 const highlightedCompanyIndex = ref(-1)
 const isLoadingCompanies = ref(false)
 
+// Autocomplete states for reportsTo (responsable)
+const reportsToSearchText = ref('')
+const reportsToList = ref([])
+const showReportsToDropdown = ref(false)
+const highlightedReportsToIndex = ref(-1)
+const isLoadingReportsTo = ref(false)
+
 // Timeout para debounce de recarga
 let reloadTimeout = null
+let searchTimeout = null
 
-// Empleados filtrados
+// Empleados - lista completa y estado de carga
+const allEmployees = ref([])
+const totalEmployees = ref(0)
+const isLoadingInitial = ref(false)
+const isLoadingMore = ref(false)
+const hasLoadedAll = ref(false)
+
+// Empleados filtrados (para mostrar en UI)
 const filteredEmployees = ref([])
 
 // Estado de carga simplificado
@@ -635,39 +751,172 @@ const isLoadingModificaciones = ref(false)
 const expandedJobOffers = ref(new Set())
 const isEmployeeListCollapsed = ref(false)
 
-// Resources using CRM pattern
-const employees = createResource({
-  url: 'portal_rrhh.api.employee.get_employees',
-  cache: false,
-  auto: true,
-  makeParams() {
-    const filters = {
-      status: 'Active'
-    }
-    
-    // Add provincia filter if provided
-    if (searchFilters.value.provincia.trim()) {
-      filters.provincia = searchFilters.value.provincia.trim()
-    }
-    
-    // Add company filter if provided
-    if (searchFilters.value.company.trim()) {
-      filters.company = searchFilters.value.company.trim()
-    }
+// Constantes de paginación
+const INITIAL_LOAD_LIMIT = 100
+const BATCH_SIZE = 200
+
+// Función para construir filtros del servidor
+const buildServerFilters = () => {
+  const filters = {}
+  
+  // Búsqueda por texto (nombre o DNI) - se envía al servidor
+  const searchText = searchFilters.value.employeeName.trim() || searchFilters.value.dninie.trim()
+  if (searchText) {
+    filters.search_text = searchText
+  }
+  
+  // Add provincia filter if provided
+  if (searchFilters.value.provincia.trim()) {
+    filters.provincia = searchFilters.value.provincia.trim()
+  }
+  
+  // Add company filter if provided
+  if (searchFilters.value.company.trim()) {
+    filters.company = searchFilters.value.company.trim()
+  }
+  
+  // Add reportsTo filter if provided
+  if (searchFilters.value.reportsTo.trim()) {
+    filters.reports_to = searchFilters.value.reportsTo.trim()
+  }
+  
+  return filters
+}
+
+// Función para cargar empleados desde el servidor
+const loadEmployees = async (limit = null, offset = 0, append = false) => {
+  try {
+    const { call } = await import('frappe-ui')
+    const filters = buildServerFilters()
     
     const params = {
       filters: JSON.stringify(filters)
     }
     
-    return params
+    if (limit) {
+      params.limit = limit
+      params.offset = offset
+    }
+    
+    const result = await call('portal_rrhh.api.employee.get_employees', params)
+    
+    if (result) {
+      const data = result.data || result || []
+      const total = result.total || data.length
+      
+      if (append) {
+        // Añadir a la lista existente, evitando duplicados
+        const existingIds = new Set(allEmployees.value.map(e => e.name))
+        const newEmployees = data.filter(e => !existingIds.has(e.name))
+        allEmployees.value = [...allEmployees.value, ...newEmployees]
+      } else {
+        allEmployees.value = data
+      }
+      
+      totalEmployees.value = total
+      updateFilteredEmployees()
+      
+      return { data, total }
+    }
+    
+    return { data: [], total: 0 }
+  } catch (error) {
+    console.error('Error loading employees:', error)
+    return { data: [], total: 0 }
   }
-})
+}
 
-// Ya no necesitamos el resource de jobOffers, usamos fetch directo
+// Función para cargar empleados en segundo plano
+const loadRemainingEmployees = async () => {
+  if (hasLoadedAll.value || isLoadingMore.value) return
+  
+  const currentCount = allEmployees.value.length
+  if (currentCount >= totalEmployees.value) {
+    hasLoadedAll.value = true
+    return
+  }
+  
+  isLoadingMore.value = true
+  
+  try {
+    let offset = currentCount
+    
+    while (offset < totalEmployees.value) {
+      const { data } = await loadEmployees(BATCH_SIZE, offset, true)
+      
+      if (!data || data.length === 0) break
+      
+      offset += data.length
+      
+      // Pequeña pausa para no bloquear la UI
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
+    
+    hasLoadedAll.value = true
+  } catch (error) {
+    console.error('Error loading remaining employees:', error)
+  } finally {
+    isLoadingMore.value = false
+  }
+}
 
+// Función para actualizar la lista filtrada
+const updateFilteredEmployees = () => {
+  filteredEmployees.value = allEmployees.value
+}
+
+// Función principal de carga inicial
+const initialLoad = async () => {
+  isLoadingInitial.value = true
+  hasLoadedAll.value = false
+  allEmployees.value = []
+  
+  try {
+    // Cargar primeros 100
+    await loadEmployees(INITIAL_LOAD_LIMIT, 0, false)
+    
+    // Cargar el resto en segundo plano
+    setTimeout(() => {
+      loadRemainingEmployees()
+    }, 100)
+  } finally {
+    isLoadingInitial.value = false
+  }
+}
+
+// Función para recargar con filtros (búsqueda en servidor)
+const reloadWithFilters = async () => {
+  isLoadingInitial.value = true
+  hasLoadedAll.value = false
+  allEmployees.value = []
+  
+  try {
+    // Cuando hay filtros activos, cargar todo de una vez (el servidor filtra)
+    const hasActiveSearchFilters = 
+      searchFilters.value.employeeName.trim() ||
+      searchFilters.value.dninie.trim() ||
+      searchFilters.value.provincia.trim() ||
+      searchFilters.value.company.trim() ||
+      searchFilters.value.reportsTo.trim()
+    
+    if (hasActiveSearchFilters) {
+      // Con filtros, cargar todo (el servidor ya filtra)
+      await loadEmployees(null, 0, false)
+      hasLoadedAll.value = true
+    } else {
+      // Sin filtros, usar carga paginada
+      await loadEmployees(INITIAL_LOAD_LIMIT, 0, false)
+      setTimeout(() => {
+        loadRemainingEmployees()
+      }, 100)
+    }
+  } finally {
+    isLoadingInitial.value = false
+  }
+}
 
 // Loading states
-const loadingEmployees = computed(() => employees.loading)
+const loadingEmployees = computed(() => isLoadingInitial.value)
 
 // Computed properties for filtered options
 const filteredProvincias = computed(() => {
@@ -687,6 +936,16 @@ const filteredCompanies = computed(() => {
   const search = companySearchText.value.toLowerCase()
   return companiesList.value.filter(c => 
     c && c.toLowerCase().includes(search)
+  )
+})
+
+const filteredReportsTo = computed(() => {
+  if (!reportsToSearchText.value.trim()) {
+    return reportsToList.value
+  }
+  const search = reportsToSearchText.value.toLowerCase()
+  return reportsToList.value.filter(r => 
+    r && r.label && r.label.toLowerCase().includes(search)
   )
 })
 
@@ -720,6 +979,22 @@ const loadCompanies = async () => {
     companiesList.value = []
   } finally {
     isLoadingCompanies.value = false
+  }
+}
+
+const loadReportsTo = async () => {
+  if (reportsToList.value.length > 0) return // Already loaded
+  
+  isLoadingReportsTo.value = true
+  try {
+    const { call } = await import('frappe-ui')
+    const data = await call('portal_rrhh.api.filters.get_unique_reports_to')
+    reportsToList.value = data || []
+  } catch (error) {
+    console.error('Error loading reports_to:', error)
+    reportsToList.value = []
+  } finally {
+    isLoadingReportsTo.value = false
   }
 }
 
@@ -891,6 +1166,92 @@ const handleCompanyEnter = () => {
   }
 }
 
+// ReportsTo (Responsable) autocomplete handlers
+const onReportsToSearchInput = () => {
+  const trimmed = reportsToSearchText.value.trim()
+  // Find matching value from list
+  const match = reportsToList.value.find(r => r.label.toLowerCase() === trimmed.toLowerCase())
+  searchFilters.value.reportsTo = match ? match.value : ''
+  showReportsToDropdown.value = true
+  highlightedReportsToIndex.value = -1
+  // Recargar empleados con debounce cuando se escribe manualmente
+  if (reloadTimeout) {
+    clearTimeout(reloadTimeout)
+  }
+  reloadTimeout = setTimeout(() => {
+    if (employees.reload) {
+      employees.reload()
+    }
+  }, 500)
+}
+
+const onReportsToFocus = () => {
+  if (reportsToList.value.length === 0) {
+    loadReportsTo()
+  }
+  if (filteredReportsTo.value.length > 0) {
+    showReportsToDropdown.value = true
+  }
+}
+
+const handleReportsToBlur = () => {
+  // Delay to allow click events
+  setTimeout(() => {
+    showReportsToDropdown.value = false
+    highlightedReportsToIndex.value = -1
+  }, 200)
+}
+
+const selectReportsTo = async (reportsTo) => {
+  reportsToSearchText.value = reportsTo.label
+  searchFilters.value.reportsTo = reportsTo.value
+  
+  showReportsToDropdown.value = false
+  highlightedReportsToIndex.value = -1
+  
+  // Esperar un momento para que Vue procese el cambio reactivo
+  await new Promise(resolve => setTimeout(resolve, 100))
+  
+  // Forzar recarga del resource con nuevos parámetros
+  if (employees) {
+    if (typeof employees.reload === 'function') {
+      employees.reload()
+    } else if (typeof employees.fetch === 'function') {
+      employees.fetch()
+    }
+  }
+}
+
+const clearReportsTo = () => {
+  reportsToSearchText.value = ''
+  searchFilters.value.reportsTo = ''
+  showReportsToDropdown.value = false
+  // Forzar recarga de empleados
+  if (employees.reload) {
+    employees.reload()
+  }
+}
+
+const navigateReportsToDropdown = (direction) => {
+  if (!showReportsToDropdown.value || filteredReportsTo.value.length === 0) return
+  
+  highlightedReportsToIndex.value += direction
+  
+  if (highlightedReportsToIndex.value < 0) {
+    highlightedReportsToIndex.value = filteredReportsTo.value.length - 1
+  } else if (highlightedReportsToIndex.value >= filteredReportsTo.value.length) {
+    highlightedReportsToIndex.value = 0
+  }
+}
+
+const handleReportsToEnter = () => {
+  if (highlightedReportsToIndex.value >= 0 && highlightedReportsToIndex.value < filteredReportsTo.value.length) {
+    selectReportsTo(filteredReportsTo.value[highlightedReportsToIndex.value])
+  } else if (filteredReportsTo.value.length === 1) {
+    selectReportsTo(filteredReportsTo.value[0])
+  }
+}
+
 // Función para cargar job offers usando Frappe UI
 const loadJobOffers = async (employeeName) => {
   try {
@@ -1036,6 +1397,52 @@ const openFormInNewTab = (doctype, docname, event) => {
   window.open(url, '_blank')
 }
 
+// Función para crear una nueva Job Offer con datos del empleado prellenados
+const createNewJobOffer = async () => {
+  if (!selectedEmployee.value || !selectedEmployee.value.name) {
+    return
+  }
+
+  try {
+    // Construir la URL solo con custom_empleado
+    // El client script de Job Offer automáticamente encontrará el job_applicant
+    // cuando se establezca custom_empleado usando la función find_and_set_job_applicant
+    const employeeName = encodeURIComponent(selectedEmployee.value.name)
+    const url = `/app/job-offer/new-job-offer?custom_empleado=${employeeName}`
+    
+    // Abrir en nueva pestaña para que el proceso sea inequívoco desde el empleado correcto
+    window.open(url, '_blank')
+  } catch (error) {
+    console.error('Error al crear nueva Job Offer:', error)
+  }
+}
+
+// Función para crear una nueva Modificación RRHH vinculada a una Job Offer
+const createNewModificacionRRHH = (jobOfferName, event) => {
+  if (event) {
+    event.stopPropagation()
+  }
+
+  if (!jobOfferName) {
+    return
+  }
+
+  try {
+    // Construir la URL con el parámetro job_offer
+    // El client script de Modificaciones RRHH automáticamente encontrará el empleado
+    // cuando se establezca job_offer usando la lógica del onload
+    // Convertir doctype a slug (reemplazar espacios con guiones y convertir a minúsculas)
+    const doctypeSlug = 'Modificaciones RRHH'.toLowerCase().replace(/\s+/g, '-')
+    const jobOfferEncoded = encodeURIComponent(jobOfferName)
+    const url = `/app/${doctypeSlug}/new-${doctypeSlug}?job_offer=${jobOfferEncoded}`
+    
+    // Abrir en nueva pestaña
+    window.open(url, '_blank')
+  } catch (error) {
+    console.error('Error al crear nueva Modificación RRHH:', error)
+  }
+}
+
 // Función para formatear fechas
 const formatDate = (dateString) => {
   if (!dateString) return 'No especificada'
@@ -1092,7 +1499,8 @@ const hasActiveFilters = computed(() => {
   return searchFilters.value.employeeName.trim() !== '' || 
          searchFilters.value.dninie.trim() !== '' ||
          searchFilters.value.provincia.trim() !== '' ||
-         searchFilters.value.company.trim() !== ''
+         searchFilters.value.company.trim() !== '' ||
+         searchFilters.value.reportsTo.trim() !== ''
 })
 
 // Computed para verificar si hay filtros activos solo para Job Offers
@@ -1107,30 +1515,16 @@ const clearFilters = () => {
   searchFilters.value.dninie = ''
   clearProvincia()
   clearCompany()
+  clearReportsTo()
 }
 
 // Load data on mount
 onMounted(() => {
   loadProvincias()
   loadCompanies()
-})
-
-// Computed property para empleados filtrados - más eficiente que watchers
-const filteredEmployeesComputed = computed(() => {
-  if (!employees.data) return []
-
-  const nameFilter = searchFilters.value.employeeName.trim().toLowerCase()
-  const dninieFilter = searchFilters.value.dninie.trim().toLowerCase()
-
-  return employees.data.filter(emp => {
-    if (nameFilter && (!emp.employee_name || !emp.employee_name.toLowerCase().includes(nameFilter))) {
-      return false
-    }
-    if (dninieFilter && (!emp.custom_dninie || !emp.custom_dninie.toLowerCase().includes(dninieFilter))) {
-      return false
-    }
-    return true
-  })
+  loadReportsTo()
+  // Carga inicial de empleados
+  initialLoad()
 })
 
 // Computed property para Job Offers filtrados
@@ -1168,12 +1562,6 @@ const filteredJobOffers = computed(() => {
   })
 })
 
-// Actualizar filteredEmployees cuando cambia el computed
-watch(filteredEmployeesComputed, (newValue) => {
-  filteredEmployees.value = newValue
-}, { immediate: true })
-
-
 // Watcher para sincronizar los textos de búsqueda con los filtros
 watch(() => searchFilters.value.provincia, (newValue) => {
   if (provinciaSearchText.value !== newValue) {
@@ -1187,29 +1575,39 @@ watch(() => searchFilters.value.company, (newValue) => {
   }
 })
 
-// Watcher para recargar empleados cuando cambian los filtros de provincia o empresa
-watch([() => searchFilters.value.provincia, () => searchFilters.value.company], ([newProvincia, newCompany], [oldProvincia, oldCompany]) => {
-  // Solo recargar si realmente cambió el valor
-  if (newProvincia !== oldProvincia || newCompany !== oldCompany) {
+watch(() => searchFilters.value.reportsTo, (newValue) => {
+  if (newValue) {
+    // Find the label for the current value
+    const match = reportsToList.value.find(r => r.value === newValue)
+    if (match && reportsToSearchText.value !== match.label) {
+      reportsToSearchText.value = match.label
+    }
+  } else {
+    reportsToSearchText.value = ''
+  }
+})
+
+// Watcher para recargar empleados cuando cambian los filtros (búsqueda en servidor)
+watch([
+  () => searchFilters.value.employeeName,
+  () => searchFilters.value.dninie,
+  () => searchFilters.value.provincia, 
+  () => searchFilters.value.company, 
+  () => searchFilters.value.reportsTo
+], ([newName, newDni, newProvincia, newCompany, newReportsTo], [oldName, oldDni, oldProvincia, oldCompany, oldReportsTo]) => {
+  // Solo recargar si realmente cambió algún valor
+  if (newName !== oldName || newDni !== oldDni || newProvincia !== oldProvincia || newCompany !== oldCompany || newReportsTo !== oldReportsTo) {
     // Limpiar timeout anterior
-    if (reloadTimeout) {
-      clearTimeout(reloadTimeout)
+    if (searchTimeout) {
+      clearTimeout(searchTimeout)
     }
     
-    // Recargar con un pequeño delay para evitar recargas múltiples
-    reloadTimeout = setTimeout(() => {
-      // Forzar recarga del resource
-      if (employees) {
-        // Intentar múltiples métodos de recarga
-        if (typeof employees.reload === 'function') {
-          employees.reload()
-        } else if (typeof employees.fetch === 'function') {
-          employees.fetch()
-        } else if (employees.submit) {
-          employees.submit()
-        }
-      }
-    }, 150)
+    // Recargar con debounce para búsquedas de texto
+    const delay = (newName !== oldName || newDni !== oldDni) ? 400 : 150
+    
+    searchTimeout = setTimeout(() => {
+      reloadWithFilters()
+    }, delay)
   }
 }, { immediate: false })
 
