@@ -262,5 +262,11 @@ def get_current_employee():
     
     if not employee:
         return None
-        
-    return get_employee(employee)
+    
+    # El usuario siempre puede ver su propio registro de empleado
+    # Usar ignore_permissions=True para evitar problemas con User Permissions
+    try:
+        employee_doc = frappe.get_doc("Employee", employee, ignore_permissions=True)
+        return employee_doc.as_dict()
+    except frappe.DoesNotExistError:
+        frappe.throw(_("Employee not found"), frappe.DoesNotExistError)

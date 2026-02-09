@@ -1,205 +1,198 @@
 <template>
-  <div class="px-5 py-6 sm:px-8 h-full overflow-y-auto">
-    <!-- Header -->
-    <div class="mb-6">
-      <h1 class="text-2xl font-bold text-gray-900">Gestión de Nóminas</h1>
-      <p class="text-base text-gray-500">Sistema de liquidación de nóminas para docentes</p>
-    </div>
+  <div class="h-full flex flex-col overflow-hidden">
+    <div class="flex-1 overflow-y-auto px-5 py-4 sm:px-8">
+      <!-- Filtros Compactos -->
+      <Card class="mb-4">
+        <div class="p-2">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-2">
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Mes</label>
+              <select 
+                v-model="filters.mes" 
+                @change="cargarDatos" 
+                class="form-select w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm py-1.5"
+              >
+                <option value="Enero">Enero</option>
+                <option value="Febrero">Febrero</option>
+                <option value="Marzo">Marzo</option>
+                <option value="Abril">Abril</option>
+                <option value="Mayo">Mayo</option>
+                <option value="Junio">Junio</option>
+                <option value="Julio">Julio</option>
+                <option value="Agosto">Agosto</option>
+                <option value="Septiembre">Septiembre</option>
+                <option value="Octubre">Octubre</option>
+                <option value="Noviembre">Noviembre</option>
+                <option value="Diciembre">Diciembre</option>
+              </select>
+            </div>
 
-    <!-- Filtros -->
-    <Card class="mb-6">
-      <template #header>
-        <div class="flex items-center gap-2">
-          <FeatherIcon name="filter" class="h-5 w-5 text-gray-500" />
-          <span class="text-lg font-medium">Filtros</span>
-        </div>
-      </template>
-      <div class="p-4 space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Mes</label>
-            <select 
-              v-model="filters.mes" 
-              @change="cargarDatos" 
-              class="form-select w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Año</label>
+              <Input 
+                type="number" 
+                v-model="filters.año" 
+                @change="cargarDatos"
+                class="text-sm"
+              />
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Docente (Opcional)</label>
+              <Input 
+                type="text" 
+                v-model="filters.employee" 
+                placeholder="Buscar docente..."
+                class="text-sm"
+              />
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Course (Opcional)</label>
+              <Input 
+                type="text" 
+                v-model="filters.course" 
+                placeholder="Buscar course..."
+                class="text-sm"
+              />
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2">
+            <Button @click="cargarDatos" icon-left="search" class="!py-1 !text-sm">
+              Buscar
+            </Button>
+            <Button @click="limpiarFiltros" appearance="white" class="!py-1 !text-sm">
+              Limpiar
+            </Button>
+            
+            <div class="border-l border-gray-300 mx-1"></div>
+            
+            <Button 
+              @click="generarPrevisiones" 
+              icon-left="calculator"
+              :loading="loading"
+              class="!py-1 !text-sm"
             >
-              <option value="Enero">Enero</option>
-              <option value="Febrero">Febrero</option>
-              <option value="Marzo">Marzo</option>
-              <option value="Abril">Abril</option>
-              <option value="Mayo">Mayo</option>
-              <option value="Junio">Junio</option>
-              <option value="Julio">Julio</option>
-              <option value="Agosto">Agosto</option>
-              <option value="Septiembre">Septiembre</option>
-              <option value="Octubre">Octubre</option>
-              <option value="Noviembre">Noviembre</option>
-              <option value="Diciembre">Diciembre</option>
-            </select>
-          </div>
+              Generar Previsiones
+            </Button>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Año</label>
-            <Input 
-              type="number" 
-              v-model="filters.año" 
-              @change="cargarDatos"
-            />
-          </div>
+            <Button 
+              @click="liquidarSeleccionadas" 
+              icon-left="check"
+              :disabled="seleccionadas.length === 0 || loading"
+              class="!py-1 !text-sm"
+            >
+              Liquidar Seleccionadas ({{ seleccionadas.length }})
+            </Button>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Docente (Opcional)</label>
-            <Input 
-              type="text" 
-              v-model="filters.employee" 
-              placeholder="Buscar docente..."
-            />
-          </div>
+            <Button 
+              @click="marcarComoEnviado" 
+              icon-left="send"
+              appearance="white"
+              :disabled="seleccionadasLiquidaciones.length === 0 || loading"
+              class="!py-1 !text-sm"
+            >
+              Marcar como Enviado
+            </Button>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Course (Opcional)</label>
-            <Input 
-              type="text" 
-              v-model="filters.course" 
-              placeholder="Buscar course..."
-            />
-          </div>
-        </div>
-
-        <div class="flex gap-2">
-          <Button @click="cargarDatos" icon-left="search">
-            Buscar
-          </Button>
-          <Button @click="limpiarFiltros" appearance="white">
-            Limpiar
-          </Button>
-        </div>
-      </div>
-    </Card>
-
-    <!-- Resumen -->
-    <div v-if="resumen" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <Card>
-        <div class="p-4 flex items-center gap-4">
-          <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100">
-            <FeatherIcon name="users" class="h-6 w-6 text-blue-600" />
-          </div>
-          <div>
-            <div class="text-xs font-medium text-gray-500 uppercase">Total Docentes</div>
-            <div class="text-2xl font-bold text-gray-900">{{ resumen.total_docentes }}</div>
+            <Button 
+              @click="generarReporteExcel" 
+              icon-left="file-text"
+              appearance="white"
+              :disabled="liquidaciones.length === 0 || loading"
+              class="!py-1 !text-sm"
+            >
+              Generar Reporte Excel
+            </Button>
           </div>
         </div>
       </Card>
 
-      <Card>
-        <div class="p-4 flex items-center gap-4">
-          <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100">
-            <FeatherIcon name="clock" class="h-6 w-6 text-green-600" />
+      <!-- Resumen Compacto -->
+      <div v-if="resumen" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <Card>
+          <div class="p-2.5 flex items-center gap-2.5">
+            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 flex-shrink-0">
+              <FeatherIcon name="users" class="h-4 w-4 text-blue-600" />
+            </div>
+            <div class="min-w-0">
+              <div class="text-[10px] font-medium text-gray-500 uppercase leading-tight">Total Docentes</div>
+              <div class="text-lg font-bold text-gray-900 leading-tight">{{ resumen.total_docentes }}</div>
+            </div>
           </div>
-          <div>
-            <div class="text-xs font-medium text-gray-500 uppercase">Total Horas</div>
-            <div class="text-2xl font-bold text-gray-900">{{ formatNumber(resumen.total_horas) }}h</div>
+        </Card>
+
+        <Card>
+          <div class="p-2.5 flex items-center gap-2.5">
+            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 flex-shrink-0">
+              <FeatherIcon name="clock" class="h-4 w-4 text-green-600" />
+            </div>
+            <div class="min-w-0">
+              <div class="text-[10px] font-medium text-gray-500 uppercase leading-tight">Total Horas</div>
+              <div class="text-lg font-bold text-gray-900 leading-tight">{{ formatNumber(resumen.total_horas) }}h</div>
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
 
-      <Card>
-        <div class="p-4 flex items-center gap-4">
-          <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-yellow-100">
-            <FeatherIcon name="dollar-sign" class="h-6 w-6 text-yellow-600" />
+        <Card>
+          <div class="p-2.5 flex items-center gap-2.5">
+            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-yellow-100 flex-shrink-0">
+              <FeatherIcon name="dollar-sign" class="h-4 w-4 text-yellow-600" />
+            </div>
+            <div class="min-w-0">
+              <div class="text-[10px] font-medium text-gray-500 uppercase leading-tight">Total Bruto</div>
+              <div class="text-lg font-bold text-gray-900 leading-tight">{{ formatCurrency(resumen.total_bruto) }}</div>
+            </div>
           </div>
-          <div>
-            <div class="text-xs font-medium text-gray-500 uppercase">Total Bruto</div>
-            <div class="text-2xl font-bold text-gray-900">{{ formatCurrency(resumen.total_bruto) }}</div>
+        </Card>
+
+        <Card class="bg-gradient-to-br from-blue-500 to-blue-600">
+          <div class="p-2.5 flex items-center gap-2.5">
+            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-white bg-opacity-20 flex-shrink-0">
+              <FeatherIcon name="trending-up" class="h-4 w-4 text-white" />
+            </div>
+            <div class="min-w-0">
+              <div class="text-[10px] font-medium text-blue-100 uppercase leading-tight">Total a Pagar</div>
+              <div class="text-lg font-bold text-white leading-tight">{{ formatCurrency(resumen.total_pagar) }}</div>
+            </div>
           </div>
-        </div>
-      </Card>
-
-      <Card class="bg-gradient-to-br from-blue-500 to-blue-600">
-        <div class="p-4 flex items-center gap-4">
-          <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-white bg-opacity-20">
-            <FeatherIcon name="trending-up" class="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <div class="text-xs font-medium text-blue-100 uppercase">Total a Pagar</div>
-            <div class="text-2xl font-bold text-white">{{ formatCurrency(resumen.total_pagar) }}</div>
-          </div>
-        </div>
-      </Card>
-    </div>
-
-    <!-- Acciones -->
-    <Card class="mb-6">
-      <div class="p-4 flex flex-wrap gap-2">
-        <Button 
-          @click="generarPrevisiones" 
-          icon-left="calculator"
-          :loading="loading"
-        >
-          Generar Previsiones
-        </Button>
-
-        <Button 
-          @click="liquidarSeleccionadas" 
-          icon-left="check"
-          :disabled="seleccionadas.length === 0 || loading"
-        >
-          Liquidar Seleccionadas ({{ seleccionadas.length }})
-        </Button>
-
-        <Button 
-          @click="marcarComoEnviado" 
-          icon-left="send"
-          appearance="white"
-          :disabled="seleccionadasLiquidaciones.length === 0 || loading"
-        >
-          Marcar como Enviado
-        </Button>
-
-        <Button 
-          @click="generarReporteExcel" 
-          icon-left="file-text"
-          appearance="white"
-          :disabled="liquidaciones.length === 0 || loading"
-        >
-          Generar Reporte Excel
-        </Button>
-      </div>
-    </Card>
-
-    <!-- Tabs -->
-    <Card>
-      <div class="border-b border-gray-200">
-        <nav class="flex -mb-px">
-          <button 
-            @click="activeTab = 'previsiones'" 
-            :class="[
-              'flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors',
-              activeTab === 'previsiones' 
-                ? 'border-blue-500 text-blue-600' 
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            ]"
-          >
-            <FeatherIcon name="eye" class="h-4 w-4" />
-            Previsiones
-          </button>
-          <button 
-            @click="activeTab = 'liquidaciones'" 
-            :class="[
-              'flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors',
-              activeTab === 'liquidaciones' 
-                ? 'border-blue-500 text-blue-600' 
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            ]"
-          >
-            <FeatherIcon name="file-text" class="h-4 w-4" />
-            Liquidaciones
-          </button>
-        </nav>
+        </Card>
       </div>
 
-      <!-- Tabla de Previsiones -->
-      <div v-if="activeTab === 'previsiones'" class="p-4">
+      <!-- Tabs -->
+      <Card>
+        <div class="border-b border-gray-200">
+          <nav class="flex -mb-px">
+            <button 
+              @click="activeTab = 'previsiones'" 
+              :class="[
+                'flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-b-2 transition-colors',
+                activeTab === 'previsiones' 
+                  ? 'border-blue-500 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ]"
+            >
+              <FeatherIcon name="eye" class="h-4 w-4" />
+              Previsiones
+            </button>
+            <button 
+              @click="activeTab = 'liquidaciones'" 
+              :class="[
+                'flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-b-2 transition-colors',
+                activeTab === 'liquidaciones' 
+                  ? 'border-blue-500 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ]"
+            >
+              <FeatherIcon name="file-text" class="h-4 w-4" />
+              Liquidaciones
+            </button>
+          </nav>
+        </div>
+
+        <!-- Tabla de Previsiones -->
+        <div v-if="activeTab === 'previsiones'" class="p-3">
         <LoadingIndicator v-if="loading" class="py-12" />
 
         <div v-else-if="previsiones.length === 0" class="text-center py-12">
@@ -214,27 +207,27 @@
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
-                <th class="px-4 py-3 text-left">
+                <th class="px-3 py-2 text-left">
                   <input 
                     type="checkbox" 
                     @change="toggleSelectAll" 
                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Docente</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DNI/NIE</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Horas</th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Bruto</th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Vacaciones</th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">SS</th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Docente</th>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DNI/NIE</th>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
+                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Horas</th>
+                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Bruto</th>
+                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Vacaciones</th>
+                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">SS</th>
+                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
               <tr v-for="prev in previsiones" :key="`prev-${prev.employee}-${prev.course}`" class="hover:bg-gray-50">
-                <td class="px-4 py-3">
+                <td class="px-3 py-2">
                   <input 
                     type="checkbox" 
                     :value="`${prev.employee}-${prev.course}`"
@@ -242,15 +235,15 @@
                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </td>
-                <td class="px-4 py-3 text-sm text-gray-900">{{ prev.employee_name }}</td>
-                <td class="px-4 py-3 text-sm text-gray-500">{{ prev.dni_nie }}</td>
-                <td class="px-4 py-3 text-sm text-gray-500">{{ prev.course }}</td>
-                <td class="px-4 py-3 text-sm text-gray-900 text-right">{{ formatNumber(prev.total_horas) }}h</td>
-                <td class="px-4 py-3 text-sm text-gray-900 text-right">{{ formatCurrency(prev.bruto) }}</td>
-                <td class="px-4 py-3 text-sm text-gray-500 text-right">{{ formatCurrency(prev.vacaciones_mes) }}</td>
-                <td class="px-4 py-3 text-sm text-gray-500 text-right">{{ formatCurrency(prev.importe_ss) }}</td>
-                <td class="px-4 py-3 text-sm font-semibold text-gray-900 text-right">{{ formatCurrency(prev.total) }}</td>
-                <td class="px-4 py-3 text-center">
+                <td class="px-3 py-2 text-sm text-gray-900">{{ prev.employee_name }}</td>
+                <td class="px-3 py-2 text-sm text-gray-500">{{ prev.dni_nie }}</td>
+                <td class="px-3 py-2 text-sm text-gray-500">{{ prev.course }}</td>
+                <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ formatNumber(prev.total_horas) }}h</td>
+                <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ formatCurrency(prev.bruto) }}</td>
+                <td class="px-3 py-2 text-sm text-gray-500 text-right">{{ formatCurrency(prev.vacaciones_mes) }}</td>
+                <td class="px-3 py-2 text-sm text-gray-500 text-right">{{ formatCurrency(prev.importe_ss) }}</td>
+                <td class="px-3 py-2 text-sm font-semibold text-gray-900 text-right">{{ formatCurrency(prev.total) }}</td>
+                <td class="px-3 py-2 text-center">
                   <div class="flex items-center justify-center gap-1">
                     <Button 
                       @click="verDetalle(prev)" 
@@ -272,8 +265,8 @@
         </div>
       </div>
 
-      <!-- Tabla de Liquidaciones -->
-      <div v-if="activeTab === 'liquidaciones'" class="p-4">
+        <!-- Tabla de Liquidaciones -->
+        <div v-if="activeTab === 'liquidaciones'" class="p-3">
         <LoadingIndicator v-if="loading" class="py-12" />
 
         <div v-else-if="liquidaciones.length === 0" class="text-center py-12">
@@ -285,29 +278,29 @@
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
-                <th class="px-4 py-3 text-left">
+                <th class="px-3 py-2 text-left">
                   <input 
                     type="checkbox" 
                     @change="toggleSelectAllLiquidaciones" 
                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Docente</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DNI/NIE</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Horas N</th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Horas E</th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total H</th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Bruto</th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">SS</th>
-                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Docente</th>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DNI/NIE</th>
+                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
+                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Horas N</th>
+                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Horas E</th>
+                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total H</th>
+                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Bruto</th>
+                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">SS</th>
+                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
               <tr v-for="liq in liquidaciones" :key="liq.name" class="hover:bg-gray-50">
-                <td class="px-4 py-3">
+                <td class="px-3 py-2">
                   <input 
                     type="checkbox" 
                     :value="liq.name"
@@ -315,21 +308,21 @@
                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </td>
-                <td class="px-4 py-3 text-sm text-gray-900">{{ liq.employee_name }}</td>
-                <td class="px-4 py-3 text-sm text-gray-500">{{ liq.dni_nie }}</td>
-                <td class="px-4 py-3 text-sm text-gray-500">{{ liq.course }}</td>
-                <td class="px-4 py-3 text-sm text-gray-900 text-right">{{ formatNumber(liq.horas_normales) }}</td>
-                <td class="px-4 py-3 text-sm text-gray-900 text-right">{{ formatNumber(liq.horas_extras) }}</td>
-                <td class="px-4 py-3 text-sm text-gray-900 text-right">{{ formatNumber(liq.total_horas) }}</td>
-                <td class="px-4 py-3 text-sm text-gray-900 text-right">{{ formatCurrency(liq.bruto) }}</td>
-                <td class="px-4 py-3 text-sm text-gray-500 text-right">{{ formatCurrency(liq.importe_ss) }}</td>
-                <td class="px-4 py-3 text-sm font-semibold text-gray-900 text-right">{{ formatCurrency(liq.total) }}</td>
-                <td class="px-4 py-3 text-center">
+                <td class="px-3 py-2 text-sm text-gray-900">{{ liq.employee_name }}</td>
+                <td class="px-3 py-2 text-sm text-gray-500">{{ liq.dni_nie }}</td>
+                <td class="px-3 py-2 text-sm text-gray-500">{{ liq.course }}</td>
+                <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ formatNumber(liq.horas_normales) }}</td>
+                <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ formatNumber(liq.horas_extras) }}</td>
+                <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ formatNumber(liq.total_horas) }}</td>
+                <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ formatCurrency(liq.bruto) }}</td>
+                <td class="px-3 py-2 text-sm text-gray-500 text-right">{{ formatCurrency(liq.importe_ss) }}</td>
+                <td class="px-3 py-2 text-sm font-semibold text-gray-900 text-right">{{ formatCurrency(liq.total) }}</td>
+                <td class="px-3 py-2 text-center">
                   <Badge :theme="getEstadoBadgeTheme(liq.estado)">
                     {{ liq.estado }}
                   </Badge>
                 </td>
-                <td class="px-4 py-3 text-center">
+                <td class="px-3 py-2 text-center">
                   <Button 
                     @click="abrirLiquidacion(liq.name)" 
                     appearance="minimal"
@@ -504,11 +497,12 @@
         </Button>
       </template>
     </Dialog>
+    </div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { Card, Badge, Button, FeatherIcon, LoadingIndicator, Input, Dialog, call } from 'frappe-ui'
 
 export default {
@@ -535,12 +529,57 @@ export default {
       course: ''
     })
     
-    // Datos
-    const previsiones = ref([])
-    const liquidaciones = ref([])
+    // Datos sin filtrar
+    const previsionesRaw = ref([])
+    const liquidacionesRaw = ref([])
     const resumen = ref(null)
     const seleccionadas = ref([])
     const seleccionadasLiquidaciones = ref([])
+    
+    // Datos filtrados (computed)
+    const previsiones = computed(() => {
+      let filtered = previsionesRaw.value
+      
+      if (filters.value.employee && filters.value.employee.trim() !== '') {
+        const searchTerm = filters.value.employee.toLowerCase().trim()
+        filtered = filtered.filter(p => 
+          p.employee_name?.toLowerCase().includes(searchTerm) ||
+          p.employee?.toLowerCase().includes(searchTerm) ||
+          p.dni_nie?.toLowerCase().includes(searchTerm)
+        )
+      }
+      
+      if (filters.value.course && filters.value.course.trim() !== '') {
+        const searchTerm = filters.value.course.toLowerCase().trim()
+        filtered = filtered.filter(p => 
+          p.course?.toLowerCase().includes(searchTerm)
+        )
+      }
+      
+      return filtered
+    })
+    
+    const liquidaciones = computed(() => {
+      let filtered = liquidacionesRaw.value
+      
+      if (filters.value.employee && filters.value.employee.trim() !== '') {
+        const searchTerm = filters.value.employee.toLowerCase().trim()
+        filtered = filtered.filter(l => 
+          l.employee_name?.toLowerCase().includes(searchTerm) ||
+          l.employee?.toLowerCase().includes(searchTerm) ||
+          l.dni_nie?.toLowerCase().includes(searchTerm)
+        )
+      }
+      
+      if (filters.value.course && filters.value.course.trim() !== '') {
+        const searchTerm = filters.value.course.toLowerCase().trim()
+        filtered = filtered.filter(l => 
+          l.course?.toLowerCase().includes(searchTerm)
+        )
+      }
+      
+      return filtered
+    })
     
     // Modals
     const showDetalleModal = ref(false)
@@ -553,29 +592,29 @@ export default {
       loading.value = true
       
       try {
-        // Cargar previsiones
+        // Cargar previsiones (sin filtros de employee/course, se filtran en frontend)
         const respPrevisiones = await call('portal_rrhh.api.nominas.get_prevision_mes', {
           mes: filters.value.mes,
           año: filters.value.año,
-          employee: filters.value.employee || null,
-          course: filters.value.course || null
+          employee: null,
+          course: null
         })
         
         if (respPrevisiones) {
-          previsiones.value = respPrevisiones.previsiones || []
+          previsionesRaw.value = respPrevisiones.previsiones || []
           resumen.value = respPrevisiones.resumen || {}
         }
         
-        // Cargar liquidaciones existentes
+        // Cargar liquidaciones existentes (sin filtros de employee/course, se filtran en frontend)
         const respLiquidaciones = await call('portal_rrhh.api.nominas.get_liquidaciones_mes', {
           mes: filters.value.mes,
           año: filters.value.año,
-          employee: filters.value.employee || null,
-          course: filters.value.course || null
+          employee: null,
+          course: null
         })
         
         if (respLiquidaciones) {
-          liquidaciones.value = respLiquidaciones.liquidaciones || []
+          liquidacionesRaw.value = respLiquidaciones.liquidaciones || []
           if (respLiquidaciones.resumen) {
             resumen.value = respLiquidaciones.resumen
           }
@@ -687,13 +726,13 @@ export default {
     }
     
     const guardarHorasExtras = () => {
-      const index = previsiones.value.findIndex(p => 
+      const index = previsionesRaw.value.findIndex(p => 
         p.employee === horasExtrasData.value.employee && 
         p.course === horasExtrasData.value.course
       )
       
       if (index !== -1) {
-        const prev = previsiones.value[index]
+        const prev = previsionesRaw.value[index]
         prev.horas_extras = horasExtrasData.value.horas_extras
         prev.precio_hora_extra = horasExtrasData.value.precio_hora_extra
         
@@ -713,6 +752,7 @@ export default {
     
     const toggleSelectAll = (event) => {
       if (event.target.checked) {
+        // Usar previsiones.value (computed) que ya tiene el filtrado aplicado
         seleccionadas.value = previsiones.value.map(p => `${p.employee}-${p.course}`)
       } else {
         seleccionadas.value = []
@@ -721,6 +761,7 @@ export default {
     
     const toggleSelectAllLiquidaciones = (event) => {
       if (event.target.checked) {
+        // Usar liquidaciones.value (computed) que ya tiene el filtrado aplicado
         seleccionadasLiquidaciones.value = liquidaciones.value.map(l => l.name)
       } else {
         seleccionadasLiquidaciones.value = []
