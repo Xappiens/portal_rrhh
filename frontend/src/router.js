@@ -84,6 +84,11 @@ const routes = [
     name: 'Incentivos',
     component: () => import('@/pages/Incentivos.vue'),
   },
+  {
+    path: '/nominas',
+    name: 'Nominas',
+    component: () => import('@/pages/Nominas.vue'),
+  },
 
   {
     path: '/ai-dashboard',
