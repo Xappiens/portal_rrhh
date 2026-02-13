@@ -70,11 +70,11 @@
             
             <Button 
               @click="generarPrevisiones" 
-              icon-left="calculator"
+              icon-left="refresh-cw"
               :loading="loading"
               class="!py-1 !text-sm"
             >
-              Generar Previsiones
+              Actualizar Previsiones
             </Button>
 
             <Button 
@@ -97,17 +97,48 @@
             </Button>
 
             <Button 
-              @click="generarReporteExcel" 
-              icon-left="file-text"
+              @click="marcarComoPagado" 
+              icon-left="dollar-sign"
               appearance="white"
-              :disabled="liquidaciones.length === 0 || loading"
+              :disabled="seleccionadasLiquidaciones.length === 0 || loading"
               class="!py-1 !text-sm"
             >
-              Generar Reporte Excel
+              Marcar como Pagado
+            </Button>
+
+            <Button 
+              @click="generarReporteExcel" 
+              icon-left="download"
+              appearance="white"
+              :disabled="liquidaciones.length === 0 || loading"
+              :loading="generandoExcel"
+              class="!py-1 !text-sm"
+            >
+              Descargar Excel
             </Button>
           </div>
         </div>
       </Card>
+
+      <!-- Notificación Toast -->
+      <transition name="fade">
+        <div 
+          v-if="toast.show" 
+          :class="[
+            'fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 max-w-md',
+            toast.type === 'success' ? 'bg-green-500 text-white' : '',
+            toast.type === 'error' ? 'bg-red-500 text-white' : '',
+            toast.type === 'warning' ? 'bg-yellow-500 text-white' : '',
+            toast.type === 'info' ? 'bg-blue-500 text-white' : ''
+          ]"
+        >
+          <FeatherIcon :name="toastIcon" class="h-5 w-5 flex-shrink-0" />
+          <span class="text-sm">{{ toast.message }}</span>
+          <button @click="toast.show = false" class="ml-2 hover:opacity-70">
+            <FeatherIcon name="x" class="h-4 w-4" />
+          </button>
+        </div>
+      </transition>
 
       <!-- Resumen Compacto -->
       <div v-if="resumen" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
@@ -175,6 +206,9 @@
             >
               <FeatherIcon name="eye" class="h-4 w-4" />
               Previsiones
+              <span v-if="previsiones.length > 0" class="ml-1 bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full text-xs">
+                {{ previsiones.length }}
+              </span>
             </button>
             <button 
               @click="activeTab = 'liquidaciones'" 
@@ -187,322 +221,364 @@
             >
               <FeatherIcon name="file-text" class="h-4 w-4" />
               Liquidaciones
+              <span v-if="liquidaciones.length > 0" class="ml-1 bg-green-100 text-green-600 px-2 py-0.5 rounded-full text-xs">
+                {{ liquidaciones.length }}
+              </span>
             </button>
           </nav>
         </div>
 
         <!-- Tabla de Previsiones -->
         <div v-if="activeTab === 'previsiones'" class="p-3">
-        <LoadingIndicator v-if="loading" class="py-12" />
+          <LoadingIndicator v-if="loading" class="py-12" />
 
-        <div v-else-if="previsiones.length === 0" class="text-center py-12">
-          <FeatherIcon name="inbox" class="h-12 w-12 text-gray-400 mx-auto mb-3" />
-          <p class="text-gray-500 mb-4">No hay previsiones para este mes</p>
-          <Button @click="generarPrevisiones" icon-left="plus">
-            Generar Previsiones
-          </Button>
-        </div>
+          <div v-else-if="previsiones.length === 0" class="text-center py-12">
+            <FeatherIcon name="inbox" class="h-12 w-12 text-gray-400 mx-auto mb-3" />
+            <p class="text-gray-500 mb-4">No hay previsiones pendientes para este mes</p>
+            <p class="text-gray-400 text-sm mb-4">Las previsiones se generan automáticamente desde Job Offers y Modificaciones RRHH activos</p>
+            <Button @click="cargarDatos" icon-left="refresh-cw">
+              Actualizar
+            </Button>
+          </div>
 
-        <div v-else class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-3 py-2 text-left">
-                  <input 
-                    type="checkbox" 
-                    @change="toggleSelectAll" 
-                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                </th>
-                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Docente</th>
-                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DNI/NIE</th>
-                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
-                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Horas</th>
-                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Bruto</th>
-                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Vacaciones</th>
-                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">SS</th>
-                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="prev in previsiones" :key="`prev-${prev.employee}-${prev.course}`" class="hover:bg-gray-50">
-                <td class="px-3 py-2">
-                  <input 
-                    type="checkbox" 
-                    :value="`${prev.employee}-${prev.course}`"
-                    v-model="seleccionadas"
-                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                </td>
-                <td class="px-3 py-2 text-sm text-gray-900">{{ prev.employee_name }}</td>
-                <td class="px-3 py-2 text-sm text-gray-500">{{ prev.dni_nie }}</td>
-                <td class="px-3 py-2 text-sm text-gray-500">{{ prev.course }}</td>
-                <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ formatNumber(prev.total_horas) }}h</td>
-                <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ formatCurrency(prev.bruto) }}</td>
-                <td class="px-3 py-2 text-sm text-gray-500 text-right">{{ formatCurrency(prev.vacaciones_mes) }}</td>
-                <td class="px-3 py-2 text-sm text-gray-500 text-right">{{ formatCurrency(prev.importe_ss) }}</td>
-                <td class="px-3 py-2 text-sm font-semibold text-gray-900 text-right">{{ formatCurrency(prev.total) }}</td>
-                <td class="px-3 py-2 text-center">
-                  <div class="flex items-center justify-center gap-1">
-                    <Button 
-                      @click="verDetalle(prev)" 
-                      appearance="minimal"
-                      icon="eye"
-                      class="!p-1"
+          <div v-else class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-3 py-2 text-left">
+                    <input 
+                      type="checkbox" 
+                      :checked="allPrevisionesSelected"
+                      @change="toggleSelectAll" 
+                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <Button 
-                      @click="agregarHorasExtras(prev)" 
-                      appearance="minimal"
-                      icon="clock"
-                      class="!p-1"
+                  </th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Docente</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DNI/NIE</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Horas</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Bruto</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Vacaciones</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">SS</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                  <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr v-for="prev in previsiones" :key="`prev-${prev.employee}-${prev.course}`" class="hover:bg-gray-50">
+                  <td class="px-3 py-2">
+                    <input 
+                      type="checkbox" 
+                      :value="`${prev.employee}-${prev.course}`"
+                      v-model="seleccionadas"
+                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                  </td>
+                  <td class="px-3 py-2 text-sm text-gray-900">{{ prev.employee_name }}</td>
+                  <td class="px-3 py-2 text-sm text-gray-500">{{ prev.dni_nie }}</td>
+                  <td class="px-3 py-2 text-sm text-gray-500 max-w-[200px] truncate" :title="prev.course">{{ prev.course }}</td>
+                  <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ formatNumber(prev.total_horas) }}h</td>
+                  <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ formatCurrency(prev.bruto) }}</td>
+                  <td class="px-3 py-2 text-sm text-gray-500 text-right">{{ formatCurrency(prev.vacaciones_mes) }}</td>
+                  <td class="px-3 py-2 text-sm text-gray-500 text-right">{{ formatCurrency(prev.importe_ss) }}</td>
+                  <td class="px-3 py-2 text-sm font-semibold text-gray-900 text-right">{{ formatCurrency(prev.total) }}</td>
+                  <td class="px-3 py-2 text-center">
+                    <div class="flex items-center justify-center gap-1">
+                      <Button 
+                        @click="verDetalle(prev)" 
+                        appearance="minimal"
+                        icon="eye"
+                        class="!p-1"
+                        title="Ver detalle"
+                      />
+                      <Button 
+                        @click="agregarHorasExtras(prev)" 
+                        appearance="minimal"
+                        icon="clock"
+                        class="!p-1"
+                        title="Agregar horas extras"
+                      />
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
 
         <!-- Tabla de Liquidaciones -->
         <div v-if="activeTab === 'liquidaciones'" class="p-3">
-        <LoadingIndicator v-if="loading" class="py-12" />
+          <LoadingIndicator v-if="loading" class="py-12" />
 
-        <div v-else-if="liquidaciones.length === 0" class="text-center py-12">
-          <FeatherIcon name="inbox" class="h-12 w-12 text-gray-400 mx-auto mb-3" />
-          <p class="text-gray-500">No hay liquidaciones creadas para este mes</p>
+          <div v-else-if="liquidaciones.length === 0" class="text-center py-12">
+            <FeatherIcon name="inbox" class="h-12 w-12 text-gray-400 mx-auto mb-3" />
+            <p class="text-gray-500">No hay liquidaciones creadas para este mes</p>
+            <p class="text-gray-400 text-sm mt-2">Selecciona previsiones y haz clic en "Liquidar Seleccionadas"</p>
+          </div>
+
+          <div v-else class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-3 py-2 text-left">
+                    <input 
+                      type="checkbox" 
+                      :checked="allLiquidacionesSelected"
+                      @change="toggleSelectAllLiquidaciones" 
+                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Docente</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DNI/NIE</th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Horas N</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Horas E</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total H</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Bruto</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">SS</th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                  <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                  <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr v-for="liq in liquidaciones" :key="liq.name" class="hover:bg-gray-50">
+                  <td class="px-3 py-2">
+                    <input 
+                      type="checkbox" 
+                      :value="liq.name"
+                      v-model="seleccionadasLiquidaciones"
+                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </td>
+                  <td class="px-3 py-2 text-sm text-gray-900">{{ liq.employee_name }}</td>
+                  <td class="px-3 py-2 text-sm text-gray-500">{{ liq.dni_nie }}</td>
+                  <td class="px-3 py-2 text-sm text-gray-500 max-w-[200px] truncate" :title="liq.course">{{ liq.course }}</td>
+                  <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ formatNumber(liq.horas_normales) }}</td>
+                  <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ formatNumber(liq.horas_extras) }}</td>
+                  <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ formatNumber(liq.total_horas) }}</td>
+                  <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ formatCurrency(liq.bruto) }}</td>
+                  <td class="px-3 py-2 text-sm text-gray-500 text-right">{{ formatCurrency(liq.importe_ss) }}</td>
+                  <td class="px-3 py-2 text-sm font-semibold text-gray-900 text-right">{{ formatCurrency(liq.total) }}</td>
+                  <td class="px-3 py-2 text-center">
+                    <Badge :theme="getEstadoBadgeTheme(liq.estado)">
+                      {{ liq.estado }}
+                    </Badge>
+                  </td>
+                  <td class="px-3 py-2 text-center">
+                    <Button 
+                      @click="abrirLiquidacion(liq.name)" 
+                      appearance="minimal"
+                      icon="external-link"
+                      class="!p-1"
+                      title="Abrir en Frappe"
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
+      </Card>
 
-        <div v-else class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-3 py-2 text-left">
-                  <input 
-                    type="checkbox" 
-                    @change="toggleSelectAllLiquidaciones" 
-                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                </th>
-                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Docente</th>
-                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DNI/NIE</th>
-                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
-                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Horas N</th>
-                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Horas E</th>
-                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total H</th>
-                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Bruto</th>
-                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">SS</th>
-                <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="liq in liquidaciones" :key="liq.name" class="hover:bg-gray-50">
-                <td class="px-3 py-2">
-                  <input 
-                    type="checkbox" 
-                    :value="liq.name"
-                    v-model="seleccionadasLiquidaciones"
-                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                </td>
-                <td class="px-3 py-2 text-sm text-gray-900">{{ liq.employee_name }}</td>
-                <td class="px-3 py-2 text-sm text-gray-500">{{ liq.dni_nie }}</td>
-                <td class="px-3 py-2 text-sm text-gray-500">{{ liq.course }}</td>
-                <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ formatNumber(liq.horas_normales) }}</td>
-                <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ formatNumber(liq.horas_extras) }}</td>
-                <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ formatNumber(liq.total_horas) }}</td>
-                <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ formatCurrency(liq.bruto) }}</td>
-                <td class="px-3 py-2 text-sm text-gray-500 text-right">{{ formatCurrency(liq.importe_ss) }}</td>
-                <td class="px-3 py-2 text-sm font-semibold text-gray-900 text-right">{{ formatCurrency(liq.total) }}</td>
-                <td class="px-3 py-2 text-center">
-                  <Badge :theme="getEstadoBadgeTheme(liq.estado)">
-                    {{ liq.estado }}
-                  </Badge>
-                </td>
-                <td class="px-3 py-2 text-center">
-                  <Button 
-                    @click="abrirLiquidacion(liq.name)" 
-                    appearance="minimal"
-                    icon="external-link"
-                    class="!p-1"
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </Card>
+      <!-- Dialog: Detalle de Previsión -->
+      <Dialog 
+        v-model="showDetalleModal"
+        :options="{
+          title: 'Detalle de Liquidación',
+          size: '3xl'
+        }"
+      >
+        <template #body-content>
+          <div v-if="detalleActual" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <!-- Información Básica -->
+              <div class="bg-gray-50 rounded-lg p-4">
+                <h4 class="text-sm font-semibold text-gray-900 mb-3">Información Básica</h4>
+                <div class="space-y-2">
+                  <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Empleado:</span>
+                    <span class="font-medium text-gray-900">{{ detalleActual.employee_name }}</span>
+                  </div>
+                  <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">DNI/NIE:</span>
+                    <span class="font-medium text-gray-900">{{ detalleActual.dni_nie }}</span>
+                  </div>
+                  <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Designation:</span>
+                    <span class="font-medium text-gray-900">{{ detalleActual.designation }}</span>
+                  </div>
+                  <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Course:</span>
+                    <span class="font-medium text-gray-900 text-right max-w-[200px]">{{ detalleActual.course }}</span>
+                  </div>
+                </div>
+              </div>
 
-    <!-- Dialog: Detalle de Previsión -->
-    <Dialog 
-      v-model="showDetalleModal"
-      :options="{
-        title: 'Detalle de Liquidación',
-        size: '3xl'
-      }"
-    >
-      <template #body-content>
-        <div v-if="detalleActual" class="space-y-6">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Información Básica -->
-            <div class="bg-gray-50 rounded-lg p-4">
-              <h4 class="text-sm font-semibold text-gray-900 mb-3">Información Básica</h4>
-              <div class="space-y-2">
-                <div class="flex justify-between text-sm">
-                  <span class="text-gray-500">Empleado:</span>
-                  <span class="font-medium text-gray-900">{{ detalleActual.employee_name }}</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                  <span class="text-gray-500">DNI/NIE:</span>
-                  <span class="font-medium text-gray-900">{{ detalleActual.dni_nie }}</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                  <span class="text-gray-500">Designation:</span>
-                  <span class="font-medium text-gray-900">{{ detalleActual.designation }}</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                  <span class="text-gray-500">Course:</span>
-                  <span class="font-medium text-gray-900">{{ detalleActual.course }}</span>
+              <!-- Horas Trabajadas -->
+              <div class="bg-gray-50 rounded-lg p-4">
+                <h4 class="text-sm font-semibold text-gray-900 mb-3">Horas Trabajadas</h4>
+                <div class="space-y-2">
+                  <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Horas Normales:</span>
+                    <span class="font-medium text-gray-900">{{ formatNumber(detalleActual.horas_normales) }}h</span>
+                  </div>
+                  <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Horas Extras:</span>
+                    <span class="font-medium text-gray-900">{{ formatNumber(detalleActual.horas_extras) }}h</span>
+                  </div>
+                  <div class="flex justify-between text-sm border-t pt-2">
+                    <span class="text-gray-500 font-medium">Total Horas:</span>
+                    <span class="font-semibold text-gray-900">{{ formatNumber(detalleActual.total_horas) }}h</span>
+                  </div>
+                  <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Días Trabajados:</span>
+                    <span class="font-medium text-gray-900">{{ detalleActual.dias_trabajados }} días</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <!-- Horas Trabajadas -->
-            <div class="bg-gray-50 rounded-lg p-4">
-              <h4 class="text-sm font-semibold text-gray-900 mb-3">Horas Trabajadas</h4>
+            <!-- Cálculo de Importes -->
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+              <h4 class="text-sm font-semibold text-gray-900 mb-4">Cálculo de Importes</h4>
               <div class="space-y-2">
                 <div class="flex justify-between text-sm">
-                  <span class="text-gray-500">Horas Normales:</span>
-                  <span class="font-medium text-gray-900">{{ formatNumber(detalleActual.horas_normales) }}h</span>
+                  <span class="text-gray-600">Precio por Hora:</span>
+                  <span class="text-gray-900">{{ formatCurrency(detalleActual.precio_hora) }}</span>
                 </div>
                 <div class="flex justify-between text-sm">
-                  <span class="text-gray-500">Horas Extras:</span>
-                  <span class="font-medium text-gray-900">{{ formatNumber(detalleActual.horas_extras) }}h</span>
+                  <span class="text-gray-600">Importe Horas Normales:</span>
+                  <span class="text-gray-900">{{ formatCurrency(detalleActual.importe_horas_normales) }}</span>
+                </div>
+                <div v-if="detalleActual.horas_extras > 0" class="flex justify-between text-sm">
+                  <span class="text-gray-600">Importe Horas Extras:</span>
+                  <span class="text-gray-900">{{ formatCurrency(detalleActual.importe_horas_extras) }}</span>
+                </div>
+                <div class="flex justify-between text-sm font-semibold border-t border-b py-2">
+                  <span class="text-gray-900">BRUTO TOTAL:</span>
+                  <span class="text-gray-900">{{ formatCurrency(detalleActual.bruto) }}</span>
+                </div>
+                <div class="flex justify-between text-sm text-red-600">
+                  <span>Vacaciones (8.33%):</span>
+                  <span>-{{ formatCurrency(detalleActual.vacaciones_mes) }}</span>
                 </div>
                 <div class="flex justify-between text-sm border-t pt-2">
-                  <span class="text-gray-500 font-medium">Total Horas:</span>
-                  <span class="font-semibold text-gray-900">{{ formatNumber(detalleActual.total_horas) }}h</span>
+                  <span class="text-gray-600">Bruto - Vacaciones:</span>
+                  <span class="text-gray-900">{{ formatCurrency(detalleActual.bruto_menos_vacaciones) }}</span>
+                </div>
+                <div v-if="detalleActual.vacaciones_acumuladas > 0" class="flex justify-between text-sm">
+                  <span class="text-gray-600">Vacaciones Acumuladas:</span>
+                  <span class="text-gray-900">{{ formatCurrency(detalleActual.vacaciones_acumuladas) }}</span>
                 </div>
                 <div class="flex justify-between text-sm">
-                  <span class="text-gray-500">Días Trabajados:</span>
-                  <span class="font-medium text-gray-900">{{ detalleActual.dias_trabajados }} días</span>
+                  <span class="text-gray-600">Base para SS:</span>
+                  <span class="text-gray-900">{{ formatCurrency(detalleActual.base_ss) }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-600">Seguridad Social (32.07%):</span>
+                  <span class="text-gray-900">{{ formatCurrency(detalleActual.importe_ss) }}</span>
+                </div>
+                <div class="flex justify-between text-lg font-bold bg-blue-50 p-3 rounded-lg mt-3">
+                  <span class="text-blue-900">TOTAL A PAGAR:</span>
+                  <span class="text-blue-900">{{ formatCurrency(detalleActual.total) }}</span>
                 </div>
               </div>
             </div>
           </div>
+        </template>
+        <template #actions>
+          <Button appearance="white" @click="showDetalleModal = false">
+            Cerrar
+          </Button>
+        </template>
+      </Dialog>
 
-          <!-- Cálculo de Importes -->
-          <div class="bg-white border border-gray-200 rounded-lg p-4">
-            <h4 class="text-sm font-semibold text-gray-900 mb-4">Cálculo de Importes</h4>
-            <div class="space-y-2">
-              <div class="flex justify-between text-sm">
-                <span class="text-gray-600">Precio por Hora:</span>
-                <span class="text-gray-900">{{ formatCurrency(detalleActual.precio_hora) }}</span>
-              </div>
-              <div class="flex justify-between text-sm">
-                <span class="text-gray-600">Importe Horas Normales:</span>
-                <span class="text-gray-900">{{ formatCurrency(detalleActual.importe_horas_normales) }}</span>
-              </div>
-              <div v-if="detalleActual.horas_extras > 0" class="flex justify-between text-sm">
-                <span class="text-gray-600">Importe Horas Extras:</span>
-                <span class="text-gray-900">{{ formatCurrency(detalleActual.importe_horas_extras) }}</span>
-              </div>
-              <div class="flex justify-between text-sm font-semibold border-t border-b py-2">
-                <span class="text-gray-900">BRUTO TOTAL:</span>
-                <span class="text-gray-900">{{ formatCurrency(detalleActual.bruto) }}</span>
-              </div>
-              <div class="flex justify-between text-sm text-red-600">
-                <span>Vacaciones (8.33%):</span>
-                <span>-{{ formatCurrency(detalleActual.vacaciones_mes) }}</span>
-              </div>
-              <div class="flex justify-between text-sm border-t pt-2">
-                <span class="text-gray-600">Bruto - Vacaciones:</span>
-                <span class="text-gray-900">{{ formatCurrency(detalleActual.bruto_menos_vacaciones) }}</span>
-              </div>
-              <div v-if="detalleActual.vacaciones_acumuladas > 0" class="flex justify-between text-sm">
-                <span class="text-gray-600">Vacaciones Acumuladas:</span>
-                <span class="text-gray-900">{{ formatCurrency(detalleActual.vacaciones_acumuladas) }}</span>
-              </div>
-              <div class="flex justify-between text-sm">
-                <span class="text-gray-600">Base para SS:</span>
-                <span class="text-gray-900">{{ formatCurrency(detalleActual.base_ss) }}</span>
-              </div>
-              <div class="flex justify-between text-sm">
-                <span class="text-gray-600">Seguridad Social (32.07%):</span>
-                <span class="text-gray-900">{{ formatCurrency(detalleActual.importe_ss) }}</span>
-              </div>
-              <div class="flex justify-between text-lg font-bold bg-blue-50 p-3 rounded-lg mt-3">
-                <span class="text-blue-900">TOTAL A PAGAR:</span>
-                <span class="text-blue-900">{{ formatCurrency(detalleActual.total) }}</span>
-              </div>
+      <!-- Dialog: Agregar Horas Extras -->
+      <Dialog 
+        v-model="showHorasExtrasModal"
+        :options="{
+          title: 'Agregar Horas Extras',
+          size: 'md'
+        }"
+      >
+        <template #body-content>
+          <div v-if="horasExtrasData" class="space-y-4">
+            <div class="bg-gray-50 rounded-lg p-3">
+              <p class="text-sm"><strong>Docente:</strong> {{ horasExtrasData.employee_name }}</p>
+              <p class="text-sm"><strong>Course:</strong> {{ horasExtrasData.course }}</p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Horas Extras</label>
+              <Input 
+                type="number" 
+                v-model="horasExtrasData.horas_extras" 
+                step="0.5"
+                min="0"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Precio Hora Extra (opcional)</label>
+              <Input 
+                type="number" 
+                v-model="horasExtrasData.precio_hora_extra" 
+                step="0.01"
+                min="0"
+                :placeholder="`Por defecto: ${formatCurrency(horasExtrasData.precio_hora * 1.2)}`"
+              />
+              <p class="text-xs text-gray-500 mt-1">Si no se especifica, se usa 120% del precio normal</p>
             </div>
           </div>
-        </div>
-      </template>
-      <template #actions>
-        <Button appearance="white" @click="showDetalleModal = false">
-          Cerrar
-        </Button>
-      </template>
-    </Dialog>
+        </template>
+        <template #actions>
+          <Button appearance="white" @click="showHorasExtrasModal = false">
+            Cancelar
+          </Button>
+          <Button @click="guardarHorasExtras">
+            Guardar
+          </Button>
+        </template>
+      </Dialog>
 
-    <!-- Dialog: Agregar Horas Extras -->
-    <Dialog 
-      v-model="showHorasExtrasModal"
-      :options="{
-        title: 'Agregar Horas Extras',
-        size: 'md'
-      }"
-    >
-      <template #body-content>
-        <div v-if="horasExtrasData" class="space-y-4">
-          <div class="bg-gray-50 rounded-lg p-3">
-            <p class="text-sm"><strong>Docente:</strong> {{ horasExtrasData.employee_name }}</p>
-            <p class="text-sm"><strong>Course:</strong> {{ horasExtrasData.course }}</p>
+      <!-- Dialog: Marcar como Pagado -->
+      <Dialog 
+        v-model="showPagoModal"
+        :options="{
+          title: 'Marcar como Pagado',
+          size: 'sm'
+        }"
+      >
+        <template #body-content>
+          <div class="space-y-4">
+            <p class="text-sm text-gray-600">
+              Se marcarán <strong>{{ seleccionadasLiquidaciones.length }}</strong> liquidaciones como pagadas.
+            </p>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Pago</label>
+              <Input 
+                type="date" 
+                v-model="fechaPago"
+              />
+            </div>
           </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Horas Extras</label>
-            <Input 
-              type="number" 
-              v-model="horasExtrasData.horas_extras" 
-              step="0.5"
-              min="0"
-            />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Precio Hora Extra (opcional)</label>
-            <Input 
-              type="number" 
-              v-model="horasExtrasData.precio_hora_extra" 
-              step="0.01"
-              min="0"
-              :placeholder="`Por defecto: ${formatCurrency(horasExtrasData.precio_hora * 1.2)}`"
-            />
-            <p class="text-xs text-gray-500 mt-1">Si no se especifica, se usa 120% del precio normal</p>
-          </div>
-        </div>
-      </template>
-      <template #actions>
-        <Button appearance="white" @click="showHorasExtrasModal = false">
-          Cancelar
-        </Button>
-        <Button @click="guardarHorasExtras">
-          Guardar
-        </Button>
-      </template>
-    </Dialog>
+        </template>
+        <template #actions>
+          <Button appearance="white" @click="showPagoModal = false">
+            Cancelar
+          </Button>
+          <Button @click="confirmarPago" :loading="loading">
+            Confirmar Pago
+          </Button>
+        </template>
+      </Dialog>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, reactive } from 'vue'
 import { Card, Badge, Button, FeatherIcon, LoadingIndicator, Input, Dialog, call } from 'frappe-ui'
 
 export default {
@@ -519,7 +595,35 @@ export default {
   setup() {
     // Estado
     const loading = ref(false)
+    const generandoExcel = ref(false)
     const activeTab = ref('previsiones')
+    
+    // Toast notification
+    const toast = reactive({
+      show: false,
+      message: '',
+      type: 'info' // 'success', 'error', 'warning', 'info'
+    })
+    
+    const toastIcon = computed(() => {
+      const icons = {
+        success: 'check-circle',
+        error: 'alert-circle',
+        warning: 'alert-triangle',
+        info: 'info'
+      }
+      return icons[toast.type] || 'info'
+    })
+    
+    const showToast = (message, type = 'info', duration = 4000) => {
+      toast.message = message
+      toast.type = type
+      toast.show = true
+      
+      setTimeout(() => {
+        toast.show = false
+      }, duration)
+    }
     
     // Filtros
     const filters = ref({
@@ -581,18 +685,31 @@ export default {
       return filtered
     })
     
+    // Computed para checkboxes "seleccionar todo"
+    const allPrevisionesSelected = computed(() => {
+      return previsiones.value.length > 0 && 
+        previsiones.value.every(p => seleccionadas.value.includes(`${p.employee}-${p.course}`))
+    })
+    
+    const allLiquidacionesSelected = computed(() => {
+      return liquidaciones.value.length > 0 && 
+        liquidaciones.value.every(l => seleccionadasLiquidaciones.value.includes(l.name))
+    })
+    
     // Modals
     const showDetalleModal = ref(false)
     const detalleActual = ref(null)
     const showHorasExtrasModal = ref(false)
     const horasExtrasData = ref(null)
+    const showPagoModal = ref(false)
+    const fechaPago = ref(new Date().toISOString().split('T')[0])
     
     // Métodos
     const cargarDatos = async () => {
       loading.value = true
       
       try {
-        // Cargar previsiones (sin filtros de employee/course, se filtran en frontend)
+        // Cargar previsiones
         const respPrevisiones = await call('portal_rrhh.api.nominas.get_prevision_mes', {
           mes: filters.value.mes,
           año: filters.value.año,
@@ -605,7 +722,7 @@ export default {
           resumen.value = respPrevisiones.resumen || {}
         }
         
-        // Cargar liquidaciones existentes (sin filtros de employee/course, se filtran en frontend)
+        // Cargar liquidaciones existentes
         const respLiquidaciones = await call('portal_rrhh.api.nominas.get_liquidaciones_mes', {
           mes: filters.value.mes,
           año: filters.value.año,
@@ -615,13 +732,15 @@ export default {
         
         if (respLiquidaciones) {
           liquidacionesRaw.value = respLiquidaciones.liquidaciones || []
-          if (respLiquidaciones.resumen) {
+          // Si hay liquidaciones, usar su resumen (más preciso)
+          if (respLiquidaciones.liquidaciones?.length > 0) {
             resumen.value = respLiquidaciones.resumen
           }
         }
         
       } catch (error) {
         console.error('Error cargando datos:', error)
+        showToast('Error al cargar los datos', 'error')
       } finally {
         loading.value = false
       }
@@ -635,6 +754,7 @@ export default {
     
     const generarPrevisiones = async () => {
       await cargarDatos()
+      showToast('Previsiones actualizadas', 'success')
     }
     
     const liquidarSeleccionadas = async () => {
@@ -651,11 +771,20 @@ export default {
           seleccionadas.value.includes(`${p.employee}-${p.course}`)
         )
         
-        await call('portal_rrhh.api.nominas.crear_liquidaciones_mes', {
+        const result = await call('portal_rrhh.api.nominas.crear_liquidaciones_mes', {
           mes: filters.value.mes,
           año: filters.value.año,
           liquidaciones_data: liquidaciones_data
         })
+        
+        if (result.creadas > 0) {
+          showToast(`Se crearon ${result.creadas} liquidaciones`, 'success')
+        }
+        
+        if (result.errores?.length > 0) {
+          console.warn('Errores al liquidar:', result.errores)
+          showToast(`${result.errores.length} liquidaciones con errores`, 'warning')
+        }
         
         seleccionadas.value = []
         await cargarDatos()
@@ -663,6 +792,7 @@ export default {
         
       } catch (error) {
         console.error('Error liquidando nóminas:', error)
+        showToast('Error al liquidar las nóminas', 'error')
       } finally {
         loading.value = false
       }
@@ -678,25 +808,56 @@ export default {
       loading.value = true
       
       try {
-        await call('portal_rrhh.api.nominas.marcar_como_enviado', {
+        const result = await call('portal_rrhh.api.nominas.marcar_como_enviado', {
           liquidaciones_ids: seleccionadasLiquidaciones.value
         })
+        
+        showToast(`Se marcaron ${result.actualizadas} liquidaciones como enviadas`, 'success')
         
         seleccionadasLiquidaciones.value = []
         await cargarDatos()
         
       } catch (error) {
         console.error('Error:', error)
+        showToast('Error al marcar como enviadas', 'error')
+      } finally {
+        loading.value = false
+      }
+    }
+    
+    const marcarComoPagado = () => {
+      if (seleccionadasLiquidaciones.value.length === 0) return
+      showPagoModal.value = true
+    }
+    
+    const confirmarPago = async () => {
+      loading.value = true
+      
+      try {
+        const result = await call('portal_rrhh.api.nominas.marcar_como_pagado', {
+          liquidaciones_ids: seleccionadasLiquidaciones.value,
+          fecha_pago: fechaPago.value
+        })
+        
+        showToast(`Se marcaron ${result.actualizadas} liquidaciones como pagadas`, 'success')
+        
+        showPagoModal.value = false
+        seleccionadasLiquidaciones.value = []
+        await cargarDatos()
+        
+      } catch (error) {
+        console.error('Error:', error)
+        showToast('Error al marcar como pagadas', 'error')
       } finally {
         loading.value = false
       }
     }
     
     const generarReporteExcel = async () => {
-      loading.value = true
+      generandoExcel.value = true
       
       try {
-        await call('portal_rrhh.api.nominas.generar_reporte_excel', {
+        const result = await call('portal_rrhh.api.nominas.generar_reporte_excel', {
           mes: filters.value.mes,
           año: filters.value.año,
           liquidaciones_ids: seleccionadasLiquidaciones.value.length > 0 
@@ -704,10 +865,17 @@ export default {
             : null
         })
         
+        if (result.success && result.file_url) {
+          // Descargar el archivo
+          window.open(result.file_url, '_blank')
+          showToast('Reporte Excel generado correctamente', 'success')
+        }
+        
       } catch (error) {
         console.error('Error generando reporte:', error)
+        showToast('Error al generar el reporte Excel', 'error')
       } finally {
-        loading.value = false
+        generandoExcel.value = false
       }
     }
     
@@ -733,8 +901,8 @@ export default {
       
       if (index !== -1) {
         const prev = previsionesRaw.value[index]
-        prev.horas_extras = horasExtrasData.value.horas_extras
-        prev.precio_hora_extra = horasExtrasData.value.precio_hora_extra
+        prev.horas_extras = parseFloat(horasExtrasData.value.horas_extras) || 0
+        prev.precio_hora_extra = parseFloat(horasExtrasData.value.precio_hora_extra) || (prev.precio_hora * 1.2)
         
         // Recalcular importes
         prev.total_horas = prev.horas_normales + prev.horas_extras
@@ -745,6 +913,8 @@ export default {
         prev.base_ss = prev.bruto_menos_vacaciones
         prev.importe_ss = Math.round(prev.base_ss * 0.3207 * 100) / 100
         prev.total = prev.base_ss + prev.importe_ss
+        
+        showToast('Horas extras actualizadas', 'success')
       }
       
       showHorasExtrasModal.value = false
@@ -752,7 +922,6 @@ export default {
     
     const toggleSelectAll = (event) => {
       if (event.target.checked) {
-        // Usar previsiones.value (computed) que ya tiene el filtrado aplicado
         seleccionadas.value = previsiones.value.map(p => `${p.employee}-${p.course}`)
       } else {
         seleccionadas.value = []
@@ -761,7 +930,6 @@ export default {
     
     const toggleSelectAllLiquidaciones = (event) => {
       if (event.target.checked) {
-        // Usar liquidaciones.value (computed) que ya tiene el filtrado aplicado
         seleccionadasLiquidaciones.value = liquidaciones.value.map(l => l.name)
       } else {
         seleccionadasLiquidaciones.value = []
@@ -813,6 +981,7 @@ export default {
     
     return {
       loading,
+      generandoExcel,
       activeTab,
       filters,
       previsiones,
@@ -820,15 +989,23 @@ export default {
       resumen,
       seleccionadas,
       seleccionadasLiquidaciones,
+      allPrevisionesSelected,
+      allLiquidacionesSelected,
       showDetalleModal,
       detalleActual,
       showHorasExtrasModal,
       horasExtrasData,
+      showPagoModal,
+      fechaPago,
+      toast,
+      toastIcon,
       cargarDatos,
       limpiarFiltros,
       generarPrevisiones,
       liquidarSeleccionadas,
       marcarComoEnviado,
+      marcarComoPagado,
+      confirmarPago,
       generarReporteExcel,
       verDetalle,
       agregarHorasExtras,
@@ -847,5 +1024,15 @@ export default {
 <style scoped>
 .form-select {
   @apply block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

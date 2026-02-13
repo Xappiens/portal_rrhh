@@ -5,7 +5,20 @@
 import frappe
 from frappe import _
 from frappe.utils import flt, today, getdate
-from datetime import datetime, time
+import json
+
+# Importar funciones compartidas del DocType
+from hrms_integrations.hrms_integrations.doctype.liquidacion_nomina.liquidacion_nomina import (
+	calcular_horas_mes_desde_calendario,
+	get_job_offers_docentes,
+	get_modificaciones_docentes,
+	get_courses_from_job_offer,
+	get_courses_from_modificacion,
+	MONTH_MAP
+)
+
+DOCTYPE_NAME = "Liquidacion Nomina"
+
 
 @frappe.whitelist()
 def get_prevision_mes(mes, año, employee=None, course=None):
@@ -27,6 +40,18 @@ def get_prevision_mes(mes, año, employee=None, course=None):
 			# Filtrar por course si se especificó (búsqueda parcial)
 			if course and course.lower() not in course_name.lower():
 				continue
+			
+			# Verificar si ya existe liquidación
+			existing = frappe.db.exists(DOCTYPE_NAME, {
+				"employee": jo.employee,
+				"course": course_name,
+				"mes": mes,
+				"año": año,
+				"docstatus": ["!=", 2]
+			})
+			
+			if existing:
+				continue  # Ya existe, no mostrar en previsión
 			
 			# Calcular previsión
 			prevision = calcular_prevision_liquidacion(
@@ -58,6 +83,18 @@ def get_prevision_mes(mes, año, employee=None, course=None):
 			if course and course.lower() not in course_name.lower():
 				continue
 			
+			# Verificar si ya existe liquidación
+			existing = frappe.db.exists(DOCTYPE_NAME, {
+				"employee": mod.employee,
+				"course": course_name,
+				"mes": mes,
+				"año": año,
+				"docstatus": ["!=", 2]
+			})
+			
+			if existing:
+				continue  # Ya existe, no mostrar en previsión
+			
 			# Calcular previsión
 			prevision = calcular_prevision_liquidacion(
 				employee=mod.employee,
@@ -77,14 +114,7 @@ def get_prevision_mes(mes, año, employee=None, course=None):
 				previsiones.append(prevision)
 	
 	# Calcular resumen
-	resumen = {
-		'total_docentes': len(set(p['employee'] for p in previsiones)),
-		'total_liquidaciones': len(previsiones),
-		'total_horas': sum(flt(p['total_horas']) for p in previsiones),
-		'total_bruto': sum(flt(p['bruto']) for p in previsiones),
-		'total_ss': sum(flt(p['importe_ss']) for p in previsiones),
-		'total_pagar': sum(flt(p['total']) for p in previsiones)
-	}
+	resumen = calcular_resumen(previsiones)
 	
 	return {
 		'previsiones': previsiones,
@@ -97,8 +127,6 @@ def crear_liquidaciones_mes(mes, año, liquidaciones_data):
 	"""
 	Crea las liquidaciones para el mes seleccionado.
 	"""
-	import json
-	
 	if isinstance(liquidaciones_data, str):
 		liquidaciones_data = json.loads(liquidaciones_data)
 	
@@ -109,7 +137,7 @@ def crear_liquidaciones_mes(mes, año, liquidaciones_data):
 	for liq_data in liquidaciones_data:
 		try:
 			# Verificar si ya existe
-			existing = frappe.db.exists("Liquidacion Nomina", {
+			existing = frappe.db.exists(DOCTYPE_NAME, {
 				"employee": liq_data['employee'],
 				"course": liq_data['course'],
 				"mes": mes,
@@ -122,7 +150,7 @@ def crear_liquidaciones_mes(mes, año, liquidaciones_data):
 				continue
 			
 			# Crear liquidación
-			doc = frappe.new_doc("Liquidacion Nomina")
+			doc = frappe.new_doc(DOCTYPE_NAME)
 			doc.employee = liq_data['employee']
 			doc.mes = mes
 			doc.año = año
@@ -162,18 +190,10 @@ def get_liquidaciones_mes(mes, año, employee=None, course=None, estado=None):
 		"año": int(año)
 	}
 	
-	# Filtro de employee - búsqueda parcial por nombre o ID
-	if employee:
-		filters["employee"] = ["like", f"%{employee}%"]
-	
-	# Filtro de course - búsqueda parcial
-	if course:
-		filters["course"] = ["like", f"%{course}%"]
-	
 	if estado:
 		filters["estado"] = estado
 	
-	liquidaciones = frappe.get_all("Liquidacion Nomina",
+	liquidaciones = frappe.get_all(DOCTYPE_NAME,
 		filters=filters,
 		fields=[
 			"name", "employee", "employee_name", "dni_nie", "designation",
@@ -189,14 +209,7 @@ def get_liquidaciones_mes(mes, año, employee=None, course=None, estado=None):
 	)
 	
 	# Calcular resumen
-	resumen = {
-		'total_docentes': len(set(liq.employee for liq in liquidaciones)),
-		'total_liquidaciones': len(liquidaciones),
-		'total_horas': sum(flt(liq.total_horas) for liq in liquidaciones),
-		'total_bruto': sum(flt(liq.bruto) for liq in liquidaciones),
-		'total_ss': sum(flt(liq.importe_ss) for liq in liquidaciones),
-		'total_pagar': sum(flt(liq.total) for liq in liquidaciones)
-	}
+	resumen = calcular_resumen(liquidaciones)
 	
 	return {
 		'liquidaciones': liquidaciones,
@@ -210,7 +223,7 @@ def actualizar_horas_extras(liquidacion_id, horas_extras, precio_hora_extra=None
 	Actualiza las horas extras de una liquidación.
 	Solo se puede hacer si no está submitted.
 	"""
-	doc = frappe.get_doc("Liquidacion Nomina", liquidacion_id)
+	doc = frappe.get_doc(DOCTYPE_NAME, liquidacion_id)
 	
 	if doc.docstatus == 1:
 		frappe.throw(_("No se pueden modificar liquidaciones ya enviadas"))
@@ -233,19 +246,19 @@ def marcar_como_enviado(liquidaciones_ids):
 	"""
 	Marca las liquidaciones seleccionadas como enviadas a asesoría.
 	"""
-	import json
-	
 	if isinstance(liquidaciones_ids, str):
 		liquidaciones_ids = json.loads(liquidaciones_ids)
 	
 	fecha_envio = today()
 	actualizadas = 0
+	errores = []
 	
 	for liq_id in liquidaciones_ids:
 		try:
-			doc = frappe.get_doc("Liquidacion Nomina", liq_id)
+			doc = frappe.get_doc(DOCTYPE_NAME, liq_id)
 			
 			if doc.docstatus != 1:
+				errores.append(f"{liq_id}: No está liquidada")
 				continue
 			
 			doc.estado = "Enviado a Asesoría"
@@ -254,11 +267,13 @@ def marcar_como_enviado(liquidaciones_ids):
 			actualizadas += 1
 			
 		except Exception as e:
+			errores.append(f"{liq_id}: {str(e)}")
 			frappe.log_error(f"Error marcando como enviado {liq_id}: {str(e)}")
 	
 	return {
 		'success': True,
 		'actualizadas': actualizadas,
+		'errores': errores,
 		'message': _("Se marcaron {0} liquidaciones como enviadas").format(actualizadas)
 	}
 
@@ -268,8 +283,6 @@ def marcar_como_pagado(liquidaciones_ids, fecha_pago=None):
 	"""
 	Marca las liquidaciones como pagadas.
 	"""
-	import json
-	
 	if isinstance(liquidaciones_ids, str):
 		liquidaciones_ids = json.loads(liquidaciones_ids)
 	
@@ -277,12 +290,14 @@ def marcar_como_pagado(liquidaciones_ids, fecha_pago=None):
 		fecha_pago = today()
 	
 	actualizadas = 0
+	errores = []
 	
 	for liq_id in liquidaciones_ids:
 		try:
-			doc = frappe.get_doc("Liquidacion Nomina", liq_id)
+			doc = frappe.get_doc(DOCTYPE_NAME, liq_id)
 			
 			if doc.docstatus != 1:
+				errores.append(f"{liq_id}: No está liquidada")
 				continue
 			
 			doc.estado = "Pagado"
@@ -291,11 +306,13 @@ def marcar_como_pagado(liquidaciones_ids, fecha_pago=None):
 			actualizadas += 1
 			
 		except Exception as e:
+			errores.append(f"{liq_id}: {str(e)}")
 			frappe.log_error(f"Error marcando como pagado {liq_id}: {str(e)}")
 	
 	return {
 		'success': True,
 		'actualizadas': actualizadas,
+		'errores': errores,
 		'message': _("Se marcaron {0} liquidaciones como pagadas").format(actualizadas)
 	}
 
@@ -304,14 +321,10 @@ def marcar_como_pagado(liquidaciones_ids, fecha_pago=None):
 def generar_reporte_excel(mes, año, liquidaciones_ids=None):
 	"""
 	Genera el reporte Excel para enviar a la asesoría.
+	Devuelve la URL del archivo generado.
 	"""
-	import json
-	
 	if isinstance(liquidaciones_ids, str):
 		liquidaciones_ids = json.loads(liquidaciones_ids)
-	
-	# TODO: Implementar generación de Excel con openpyxl
-	# Por ahora, retornar los datos para que el frontend los maneje
 	
 	filters = {
 		"mes": mes,
@@ -322,18 +335,143 @@ def generar_reporte_excel(mes, año, liquidaciones_ids=None):
 	if liquidaciones_ids:
 		filters["name"] = ["in", liquidaciones_ids]
 	
-	liquidaciones = frappe.get_all("Liquidacion Nomina",
+	liquidaciones = frappe.get_all(DOCTYPE_NAME,
 		filters=filters,
 		fields="*",
 		order_by="company asc, employee_name asc"
 	)
 	
-	return {
-		'success': True,
-		'liquidaciones': liquidaciones,
-		'mes': mes,
-		'año': año
-	}
+	if not liquidaciones:
+		frappe.throw(_("No hay liquidaciones para exportar"))
+	
+	# Generar Excel
+	try:
+		from openpyxl import Workbook
+		from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+		from openpyxl.utils import get_column_letter
+		import io
+		
+		wb = Workbook()
+		ws = wb.active
+		ws.title = f"Liquidaciones {mes} {año}"
+		
+		# Estilos
+		header_font = Font(bold=True, color="FFFFFF")
+		header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+		header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+		thin_border = Border(
+			left=Side(style='thin'),
+			right=Side(style='thin'),
+			top=Side(style='thin'),
+			bottom=Side(style='thin')
+		)
+		currency_format = '#,##0.00 €'
+		
+		# Headers
+		headers = [
+			"Empresa", "Empleado", "DNI/NIE", "Designation", "Course",
+			"Horas Normales", "Horas Extras", "Total Horas", "Días Trabajados",
+			"Precio/Hora", "Precio/Hora Extra",
+			"Bruto", "Vacaciones Mes", "Bruto - Vacaciones",
+			"Base SS", "Importe SS", "TOTAL",
+			"Estado", "Fecha Liquidación"
+		]
+		
+		for col_num, header in enumerate(headers, 1):
+			cell = ws.cell(row=1, column=col_num, value=header)
+			cell.font = header_font
+			cell.fill = header_fill
+			cell.alignment = header_alignment
+			cell.border = thin_border
+		
+		# Datos
+		for row_num, liq in enumerate(liquidaciones, 2):
+			row_data = [
+				liq.company,
+				liq.employee_name,
+				liq.dni_nie,
+				liq.designation,
+				liq.course,
+				liq.horas_normales,
+				liq.horas_extras,
+				liq.total_horas,
+				liq.dias_trabajados,
+				liq.precio_hora,
+				liq.precio_hora_extra,
+				liq.bruto,
+				liq.vacaciones_mes,
+				liq.bruto_menos_vacaciones,
+				liq.base_ss,
+				liq.importe_ss,
+				liq.total,
+				liq.estado,
+				str(liq.fecha_liquidacion) if liq.fecha_liquidacion else ""
+			]
+			
+			for col_num, value in enumerate(row_data, 1):
+				cell = ws.cell(row=row_num, column=col_num, value=value)
+				cell.border = thin_border
+				
+				# Formato de moneda para columnas de importes
+				if col_num in [10, 11, 12, 13, 14, 15, 16, 17]:
+					cell.number_format = currency_format
+		
+		# Fila de totales
+		total_row = len(liquidaciones) + 2
+		ws.cell(row=total_row, column=1, value="TOTALES").font = Font(bold=True)
+		
+		# Sumar columnas numéricas
+		sum_columns = {
+			6: sum(flt(l.horas_normales) for l in liquidaciones),
+			7: sum(flt(l.horas_extras) for l in liquidaciones),
+			8: sum(flt(l.total_horas) for l in liquidaciones),
+			12: sum(flt(l.bruto) for l in liquidaciones),
+			13: sum(flt(l.vacaciones_mes) for l in liquidaciones),
+			14: sum(flt(l.bruto_menos_vacaciones) for l in liquidaciones),
+			15: sum(flt(l.base_ss) for l in liquidaciones),
+			16: sum(flt(l.importe_ss) for l in liquidaciones),
+			17: sum(flt(l.total) for l in liquidaciones),
+		}
+		
+		for col, value in sum_columns.items():
+			cell = ws.cell(row=total_row, column=col, value=value)
+			cell.font = Font(bold=True)
+			cell.border = thin_border
+			if col >= 10:
+				cell.number_format = currency_format
+		
+		# Ajustar anchos de columna
+		column_widths = [15, 25, 12, 15, 30, 12, 12, 12, 12, 12, 12, 12, 12, 15, 12, 12, 12, 15, 15]
+		for i, width in enumerate(column_widths, 1):
+			ws.column_dimensions[get_column_letter(i)].width = width
+		
+		# Guardar en buffer
+		output = io.BytesIO()
+		wb.save(output)
+		output.seek(0)
+		
+		# Guardar como archivo en Frappe
+		filename = f"Liquidaciones_{mes}_{año}.xlsx"
+		file_doc = frappe.get_doc({
+			"doctype": "File",
+			"file_name": filename,
+			"content": output.getvalue(),
+			"is_private": 1
+		})
+		file_doc.save(ignore_permissions=True)
+		
+		return {
+			'success': True,
+			'file_url': file_doc.file_url,
+			'filename': filename,
+			'message': _("Reporte generado correctamente")
+		}
+		
+	except ImportError:
+		frappe.throw(_("El módulo openpyxl no está instalado. Ejecute: pip install openpyxl"))
+	except Exception as e:
+		frappe.log_error(f"Error generando Excel: {str(e)}", "Generar Reporte Excel")
+		frappe.throw(_("Error generando el reporte: {0}").format(str(e)))
 
 
 # ============================================================================
@@ -386,7 +524,7 @@ def calcular_prevision_liquidacion(employee, employee_name, dni_nie, designation
 		'total_horas': horas_normales,
 		'dias_trabajados': dias_trabajados,
 		'precio_hora': precio_hora,
-		'precio_hora_extra': precio_hora * 1.2,
+		'precio_hora_extra': round(flt(precio_hora) * 1.2, 2),
 		'importe_horas_normales': importe_horas_normales,
 		'importe_horas_extras': 0,
 		'bruto': bruto,
@@ -401,179 +539,30 @@ def calcular_prevision_liquidacion(employee, employee_name, dni_nie, designation
 	}
 
 
-def calcular_horas_mes_desde_calendario(course_name, mes, año):
-	"""
-	Calcula las horas lectivas de un mes desde el calendario del curso.
-	"""
-	course = frappe.get_doc('Course', course_name)
+def calcular_resumen(items):
+	"""Calcula el resumen de una lista de liquidaciones/previsiones"""
+	if not items:
+		return {
+			'total_docentes': 0,
+			'total_liquidaciones': 0,
+			'total_horas': 0,
+			'total_bruto': 0,
+			'total_ss': 0,
+			'total_pagar': 0
+		}
 	
-	if not course.custom_calendario_curso:
-		return None
-	
-	# Mapeo de meses
-	month_map = {
-		'Enero': 1, 'Febrero': 2, 'Marzo': 3, 'Abril': 4,
-		'Mayo': 5, 'Junio': 6, 'Julio': 7, 'Agosto': 8,
-		'Septiembre': 9, 'Octubre': 10, 'Noviembre': 11, 'Diciembre': 12
-	}
-	
-	mes_num = month_map.get(mes, 0)
-	if not mes_num:
-		return None
-	
-	total_horas = 0
-	dias_trabajados = set()
-	
-	# Iterar sobre el calendario
-	for cal in course.custom_calendario_curso:
-		# Verificar que sea del mes y año correcto
-		if cal.fecha and cal.fecha.month == mes_num and cal.fecha.year == año:
-			# Solo contar días lectivos
-			if cal.lectivo:
-				# Calcular horas del día sumando todos los tramos
-				horas_dia = 0
-				
-				tramos = [
-					(cal.inicio_primer_tramohorario, cal.fin_primer_tramohorario),
-					(cal.inicio_segundo_tramohorario, cal.fin_segundotramohorario),
-					(cal.inicio_tercer_tramohorario, cal.fin_tercer_tramohorario),
-					(cal.inicio_cuarto_tramohorario, cal.fin_cuarto_tramohorario),
-					(cal.inicio_quinto_tramohorario, cal.fin_quinto_tramohorario),
-					(cal.inicio_sexto_tramohorario, cal.fin_sexto_tramohorario)
-				]
-				
-				for inicio, fin in tramos:
-					if inicio and fin:
-						# Convertir a time si es necesario
-						from datetime import timedelta
-						
-						# Si es timedelta (duración), convertir a horas directamente
-						if isinstance(inicio, timedelta):
-							inicio_horas = inicio.total_seconds() / 3600
-						elif isinstance(inicio, str):
-							inicio_time = datetime.strptime(inicio, '%H:%M:%S').time()
-							inicio_horas = inicio_time.hour + inicio_time.minute / 60 + inicio_time.second / 3600
-						elif isinstance(inicio, time):
-							inicio_horas = inicio.hour + inicio.minute / 60 + inicio.second / 3600
-						else:
-							continue
-						
-						if isinstance(fin, timedelta):
-							fin_horas = fin.total_seconds() / 3600
-						elif isinstance(fin, str):
-							fin_time = datetime.strptime(fin, '%H:%M:%S').time()
-							fin_horas = fin_time.hour + fin_time.minute / 60 + fin_time.second / 3600
-						elif isinstance(fin, time):
-							fin_horas = fin.hour + fin.minute / 60 + fin.second / 3600
-						else:
-							continue
-						
-						# Calcular diferencia en horas
-						horas = abs(fin_horas - inicio_horas)
-						horas_dia += horas
-				
-				total_horas += horas_dia
-				dias_trabajados.add(cal.fecha)
+	# Obtener employee de cada item (puede ser dict o frappe._dict)
+	employees = set()
+	for item in items:
+		emp = item.get('employee') if isinstance(item, dict) else item.employee
+		if emp:
+			employees.add(emp)
 	
 	return {
-		'total_horas': round(total_horas, 2),
-		'dias_trabajados': len(dias_trabajados)
+		'total_docentes': len(employees),
+		'total_liquidaciones': len(items),
+		'total_horas': sum(flt(item.get('total_horas') if isinstance(item, dict) else item.total_horas) for item in items),
+		'total_bruto': sum(flt(item.get('bruto') if isinstance(item, dict) else item.bruto) for item in items),
+		'total_ss': sum(flt(item.get('importe_ss') if isinstance(item, dict) else item.importe_ss) for item in items),
+		'total_pagar': sum(flt(item.get('total') if isinstance(item, dict) else item.total) for item in items)
 	}
-
-
-def get_job_offers_docentes(employee=None):
-	"""Obtener Job Offers activos de Docentes/Tutores"""
-	# Filtro de employee - búsqueda parcial por ID o nombre
-	employee_filter = ""
-	if employee:
-		employee_filter = f"AND (emp.name LIKE '%{employee}%' OR emp.employee_name LIKE '%{employee}%')"
-	
-	job_offers = frappe.db.sql(f"""
-		SELECT 
-			jo.name,
-			jo.applicant_name,
-			jo.custom_dninie,
-			jo.company,
-			jo.custom_precio_por_hora as precio_hora,
-			emp.name as employee,
-			emp.employee_name,
-			emp.custom_dninie as dni_nie,
-			emp.designation
-		FROM `tabJob Offer` jo
-		INNER JOIN `tabEmployee` emp ON jo.custom_dninie = emp.custom_dninie
-		WHERE jo.status = 'Accepted'
-		AND jo.docstatus = 1
-		AND jo.custom_precio_por_hora > 0
-		AND emp.designation IN ('Docente', 'Tutor/a')
-		{employee_filter}
-	""", as_dict=True)
-	
-	return job_offers
-
-
-def get_modificaciones_docentes(employee=None):
-	"""Obtener Modificaciones RRHH activas de Docentes/Tutores"""
-	# Filtro de employee - búsqueda parcial por ID o nombre
-	employee_filter = ""
-	if employee:
-		employee_filter = f"AND (emp.name LIKE '%{employee}%' OR emp.employee_name LIKE '%{employee}%')"
-	
-	modificaciones = frappe.db.sql(f"""
-		SELECT 
-			mr.name,
-			mr.employee,
-			mr.applicant_name,
-			mr.company,
-			mr.custom_precio_por_hora as precio_hora,
-			emp.employee_name,
-			emp.custom_dninie as dni_nie,
-			emp.designation
-		FROM `tabModificaciones RRHH` mr
-		INNER JOIN `tabEmployee` emp ON mr.employee = emp.name
-		WHERE mr.status = 'Accepted'
-		AND mr.docstatus = 1
-		AND mr.custom_precio_por_hora > 0
-		AND emp.designation IN ('Docente', 'Tutor/a')
-		{employee_filter}
-	""", as_dict=True)
-	
-	return modificaciones
-
-
-def get_courses_from_job_offer(job_offer_name):
-	"""Obtener courses de un Job Offer"""
-	courses = frappe.db.sql("""
-		SELECT course
-		FROM `tabJob Offer Course`
-		WHERE parent = %(job_offer)s
-		AND course IS NOT NULL
-		AND course != ''
-	""", {"job_offer": job_offer_name}, as_list=True)
-	
-	return [c[0] for c in courses if c[0]]
-
-
-def get_courses_from_modificacion(modificacion_name):
-	"""Obtener courses de una Modificación RRHH"""
-	# Intentar con diferentes nombres de tabla hija
-	tables_to_try = [
-		"Modificaciones RRHH Course",
-		"Job Offer Course"  # Por si usa la misma tabla
-	]
-	
-	for table_name in tables_to_try:
-		try:
-			courses = frappe.db.sql(f"""
-				SELECT course
-				FROM `tab{table_name}`
-				WHERE parent = %(modificacion)s
-				AND course IS NOT NULL
-				AND course != ''
-			""", {"modificacion": modificacion_name}, as_list=True)
-			
-			if courses:
-				return [c[0] for c in courses if c[0]]
-		except:
-			continue
-	
-	return []
