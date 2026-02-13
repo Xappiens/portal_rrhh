@@ -1,14 +1,17 @@
 <script setup>
 import CheckInWidget from '@/components/CheckInWidget.vue'
 import AttendanceCalendar from '@/components/AttendanceCalendar.vue'
+import Modelo145Dialog from '@/components/Modelo145Dialog.vue'
 import { createResource, Dialog, Button, FeatherIcon } from 'frappe-ui'
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const __ = (text) => text
 
-const isBlocked = ref(false)
+const isBlockedOnboarding = ref(false)
+const isBlockedModelo145 = ref(false)
+const showModelo145Dialog = ref(false)
 
 // Check Onboarding Status
 const onboardingStatus = createResource({
@@ -16,7 +19,18 @@ const onboardingStatus = createResource({
     auto: true,
     onSuccess: (data) => {
         if (data.has_pending) {
-            isBlocked.value = true
+            isBlockedOnboarding.value = true
+        }
+    }
+})
+
+// Check Modelo 145 Status
+const modelo145Status = createResource({
+    url: "portal_rrhh.api.modelo145.has_modelo_145",
+    auto: true,
+    onSuccess: (data) => {
+        if (!data.has_modelo) {
+            isBlockedModelo145.value = true
         }
     }
 })
@@ -29,6 +43,15 @@ const employee = createResource({
 
 const goToOnboarding = () => {
     router.push({ name: 'Onboarding' })
+}
+
+const openModelo145Dialog = () => {
+    showModelo145Dialog.value = true
+}
+
+const handleModelo145Success = () => {
+    isBlockedModelo145.value = false
+    modelo145Status.reload()
 }
 </script>
 
@@ -45,8 +68,8 @@ const goToOnboarding = () => {
 
     </div>
 
-    <!-- Blocking Modal -->
-    <Dialog v-model="isBlocked" :options="{ size: 'xl', preventClose: true }">
+    <!-- Blocking Modal - Onboarding -->
+    <Dialog v-model="isBlockedOnboarding" :options="{ size: 'xl', preventClose: true }">
       <template #body-content>
         <div class="flex flex-col items-center justify-center p-6 text-center">
             <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
@@ -65,10 +88,46 @@ const goToOnboarding = () => {
             </Button>
         </div>
       </template>
-      <!-- Hide default actions to enforce the flow -->
       <template #actions>
          <div></div> 
       </template>
     </Dialog>
+
+    <!-- Blocking Modal - Modelo 145 -->
+    <Dialog v-model="isBlockedModelo145" :options="{ size: 'xl', preventClose: true }">
+      <template #body-content>
+        <div class="flex flex-col items-center justify-center p-6 text-center">
+            <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                <FeatherIcon name="file-text" class="w-8 h-8 text-amber-600" />
+            </div>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">
+                Modelo 145 Requerido
+            </h2>
+            <p class="text-lg text-gray-600 mb-4">
+                No puedes registrar tu jornada hasta presentar tu Modelo 145.
+            </p>
+            <p class="text-sm text-gray-500 mb-6">
+                El Modelo 145 es la comunicación de datos al pagador para el cálculo de retenciones del IRPF.
+                Es obligatorio para todos los empleados.
+            </p>
+            <Button variant="solid" size="xl" class="!bg-amber-600 hover:!bg-amber-700" @click="openModelo145Dialog">
+                <template #prefix>
+                    <FeatherIcon name="file-text" class="w-5 h-5" />
+                </template>
+                Rellenar Modelo 145
+            </Button>
+        </div>
+      </template>
+      <template #actions>
+         <div></div> 
+      </template>
+    </Dialog>
+
+    <!-- Modelo 145 Dialog -->
+    <Modelo145Dialog 
+      v-model="showModelo145Dialog" 
+      :employee-id="employee.data?.name || ''" 
+      @success="handleModelo145Success" 
+    />
   </div>
 </template>

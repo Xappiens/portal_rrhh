@@ -223,6 +223,32 @@
                 </template>
                 Solicitar Modificación de Retención IRPF
               </Button>
+              <Button
+                @click="showModelo145Dialog = true"
+                class="w-full !bg-amber-600 hover:!bg-amber-700 !text-white"
+              >
+                <template #prefix>
+                  <FeatherIcon name="file-text" class="h-4 w-4" />
+                </template>
+                Presentar Modelo 145
+              </Button>
+            </div>
+            
+            <!-- Alerta si no tiene Modelo 145 -->
+            <div 
+              v-if="modelo145Status.data && !modelo145Status.data.has_modelo" 
+              class="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3"
+            >
+              <div class="flex items-start gap-2">
+                <FeatherIcon name="alert-circle" class="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div class="text-sm text-amber-800">
+                  <p class="font-semibold">Modelo 145 pendiente</p>
+                  <p class="text-xs mt-1">
+                    Aún no has presentado tu Modelo 145 (Comunicación de datos al pagador). 
+                    Este documento es necesario para calcular correctamente tus retenciones de IRPF.
+                  </p>
+                </div>
+              </div>
             </div>
             
             <div v-if="employee.data.companies && employee.data.companies.length > 0" class="border-t pt-4 mt-4">
@@ -388,6 +414,84 @@
           </div>
         </div>
       </Card>
+
+      <!-- Historial de Modelo 145 -->
+      <Card class="h-full lg:col-span-2" v-if="employee.data">
+        <template #header>
+          <div class="flex items-center gap-2">
+            <FeatherIcon name="file-text" class="h-5 w-5 text-amber-500" />
+            <span class="text-lg font-medium">Modelo 145 - Comunicación de Datos al Pagador</span>
+          </div>
+        </template>
+        <div class="p-4">
+          <div v-if="modelo145List.loading" class="flex justify-center py-8">
+            <LoadingIndicator />
+          </div>
+          <div
+            v-else-if="modelo145List.error"
+            class="rounded-md bg-red-50 p-4 text-red-700"
+          >
+            <p>No se pudieron cargar los modelos.</p>
+          </div>
+          <div v-else-if="!modelo145List.data || modelo145List.data.length === 0" class="py-8 text-center text-gray-500">
+            <FeatherIcon
+              name="file-text"
+              class="mx-auto mb-2 h-8 w-8 text-gray-400"
+            />
+            <p>No has presentado ningún Modelo 145.</p>
+            <p class="text-xs mt-2">Presenta tu Modelo 145 para comunicar tu situación personal y familiar.</p>
+          </div>
+          <div v-else class="space-y-3">
+            <div
+              v-for="modelo in modelo145List.data"
+              :key="modelo.name"
+              class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+            >
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-sm font-semibold text-gray-900">
+                      {{ modelo.name }}
+                    </span>
+                    <Badge
+                      :theme="modelo.status === 'Received' ? 'green' : 'orange'"
+                      size="sm"
+                    >
+                      {{ modelo.status === 'Received' ? 'Procesado' : 'Pendiente' }}
+                    </Badge>
+                  </div>
+                  <p class="text-xs text-gray-500">
+                    Fecha de presentación: {{ formatDate(modelo.posting_date || modelo.creation) }}
+                  </p>
+                </div>
+              </div>
+              
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm">
+                <div>
+                  <span class="text-gray-500 text-xs block">Situación Familiar</span>
+                  <span class="text-gray-900">{{ modelo.family_situation?.split('.')[0] || '-' }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-500 text-xs block">Descendientes</span>
+                  <span class="text-gray-900">{{ modelo.descendants_count || 0 }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-500 text-xs block">Ascendientes</span>
+                  <span class="text-gray-900">{{ modelo.ascendants_count || 0 }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-500 text-xs block">Fecha de Efecto</span>
+                  <span class="text-gray-900">{{ formatDate(modelo.effective_date) }}</span>
+                </div>
+              </div>
+              
+              <div v-if="modelo.received_date" class="mt-3 pt-3 border-t text-xs text-gray-500">
+                Procesado el {{ formatDate(modelo.received_date) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
     </div>
 
     <!-- Diálogo de cambio de IBAN -->
@@ -405,6 +509,13 @@
       :employee-id="employee.data?.name || ''"
       @success="handleIrpfRequestSuccess"
     />
+
+    <!-- Diálogo de Modelo 145 -->
+    <Modelo145Dialog
+      v-model="showModelo145Dialog"
+      :employee-id="employee.data?.name || ''"
+      @success="handleModelo145Success"
+    />
   </div>
 </template>
 
@@ -415,6 +526,7 @@ import { sessionStore } from '@/stores/session'
 import { usersStore } from '@/stores/users'
 import IbanChangeDialog from '@/components/IbanChangeDialog.vue'
 import IrpfRetentionDialog from '@/components/IrpfRetentionDialog.vue'
+import Modelo145Dialog from '@/components/Modelo145Dialog.vue'
 
 const userInitials = computed(() => {
   const fullName = usersStore().getUser('sessionUser').full_name
@@ -442,14 +554,27 @@ const irpfRequests = createResource({
   auto: false, // Se cargará cuando haya un empleado
 })
 
+const modelo145List = createResource({
+  url: 'portal_rrhh.api.modelo145.get_my_modelo_145_list',
+  auto: false, // Se cargará cuando haya un empleado
+})
+
+const modelo145Status = createResource({
+  url: 'portal_rrhh.api.modelo145.has_modelo_145',
+  auto: false, // Se cargará cuando haya un empleado
+})
+
 const showIbanDialog = ref(false)
 const showIrpfDialog = ref(false)
+const showModelo145Dialog = ref(false)
 
 // Cargar solicitudes cuando haya un empleado
 watch(() => employee.data, (newData) => {
   if (newData && newData.name) {
     ibanRequests.reload()
     irpfRequests.reload()
+    modelo145List.reload()
+    modelo145Status.reload()
   }
 }, { immediate: true })
 
@@ -501,5 +626,12 @@ function handleIbanRequestSuccess() {
 function handleIrpfRequestSuccess() {
   employee.reload()
   irpfRequests.reload()
+}
+
+// Manejar éxito al crear Modelo 145
+function handleModelo145Success() {
+  employee.reload()
+  modelo145List.reload()
+  modelo145Status.reload()
 }
 </script>
