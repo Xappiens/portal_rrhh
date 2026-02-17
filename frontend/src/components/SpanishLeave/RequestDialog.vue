@@ -254,8 +254,6 @@ const form = ref({
   request_type: 'Por Días',
   description: '',
   hours: 0,
-  description: '',
-  hours: 0,
 })
 const fileInput = ref(null)
 const selectedFile = ref(null)
@@ -350,10 +348,7 @@ function resetForm() {
     form.value.request_type = 'Por Días'
     form.value.description = ''
     form.value.hours = 0
-    dates.value = { from: '', to: '', single: ''}
-    error.value = null
-    form.value.hours = 0
-    dates.value = { from: '', to: '', single: ''}
+    dates.value = { from: '', to: '', single: '' }
     error.value = null
     submitting.value = false
     selectedFile.value = null

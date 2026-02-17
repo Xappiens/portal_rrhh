@@ -26,13 +26,6 @@
                                 <span>Disponibles:</span>
                                 <span class="font-mono">{{ dashboard.data.total_days_remaining }}</span>
                             </div>
-                            <div v-if="dashboard.data.total_hours_allocated > 0" class="pt-2 border-t mt-1">
-                                <div class="font-semibold text-xs text-gray-500 mb-1">Horas de Libre Disposición</div>
-                                <div class="flex justify-between gap-4">
-                                    <span>Disp: {{ dashboard.data.total_hours_remaining?.toFixed(2) }}h</span>
-                                    <span class="text-xs text-gray-400">/ {{ dashboard.data.total_hours_allocated?.toFixed(2) }}h</span>
-                                </div>
-                            </div>
                         </div>
                     </template>
                     <div class="flex flex-col cursor-help group">
@@ -382,29 +375,26 @@
                  />
              </div>
 
-             <!-- Team Requests List View -->
-             <div v-else class="rounded-xl border bg-white shadow-sm overflow-hidden">
+             <!-- Team Requests List View (Pending Mode) -->
+             <div v-else-if="teamViewMode === 'Pending'" class="rounded-xl border bg-white shadow-sm overflow-hidden">
 
                  <div class="border-b bg-gray-50 px-6 py-4 flex justify-between items-center">
-                    <h3 class="text-lg font-medium text-gray-900">
-                        {{ teamViewMode === 'Pending' ? 'Solicitudes Pendientes' : 'Historial de Equipo' }}
-                    </h3>
+                    <h3 class="text-lg font-medium text-gray-900">Solicitudes Pendientes</h3>
                     <span v-if="teamRequests.data" class="text-xs text-gray-500 font-medium bg-white px-2 py-1 rounded border">
                         {{ teamRequests.data.length }} registros
                     </span>
                  </div>
                  <div v-if="teamRequests.loading" class="p-6 text-center text-gray-500">Cargando...</div>
                  <div v-else-if="!teamRequests.data?.length" class="p-6 text-center text-gray-500 text-sm">
-                     No hay solicitudes en esta vista.
+                     No hay solicitudes pendientes.
                  </div>
                  <table v-else class="min-w-full divide-y divide-gray-200">
                      <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Empleado</th>
                             <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Tipo</th>
-                             <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Fechas</th>
-                             <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500" v-if="teamViewMode === 'History'">Estado</th>
-                             <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Acciones</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Fechas</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Acciones</th>
                         </tr>
                      </thead>
                      <tbody class="divide-y divide-gray-200 bg-white">
@@ -415,7 +405,7 @@
                              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                  {{ req.leave_type }}
                              </td>
-                              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 <span v-if="req.request_type === 'Por Días'">
                                     {{ formatDate(req.from_date) }} - {{ formatDate(req.to_date) }}
                                     <span class="ml-1 text-xs text-gray-400">({{ req.total_days }} días)</span>
@@ -424,24 +414,15 @@
                                     {{ formatDate(req.request_date) }} ({{ req.total_hours }}h)
                                 </span>
                              </td>
-                              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" v-if="teamViewMode === 'History'">
-                                  <Badge :variant="getStatusVariant(req.status)">{{ req.status }}</Badge>
-                              </td>
                              <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
-                                  <div class="flex justify-end gap-2" v-if="req.status === 'Abierta'">
-                                      <Button variant="subtle" color="red" @click="process(req.name, 'reject')" :loading="processingId === req.name">
+                                  <div class="flex justify-end gap-2">
+                                      <Button variant="subtle" color="red" @click="openRejectDialog(req)" :loading="processingId === req.name">
                                           Rechazar
                                       </Button>
                                       <Button variant="solid" color="green" @click="process(req.name, 'approve')" :loading="processingId === req.name">
                                           Aprobar
                                       </Button>
                                   </div>
-                                  <div class="flex justify-end gap-2" v-else-if="req.status === 'Aprobada' && isFutureDate(req.to_date || req.request_date)">
-                                       <Button variant="subtle" color="gray" @click="process(req.name, 'cancel')" :loading="processingId === req.name">
-                                          Cancelar
-                                      </Button>
-                                  </div>
-                                  <!-- Múltiples adjuntos en tabla de equipo -->
                                   <div class="flex justify-end gap-2 mt-1" v-if="req.attachments?.length > 0">
                                       <Button
                                           variant="ghost" 
@@ -455,6 +436,110 @@
                                           </template>
                                       </Button>
                                   </div>
+                             </td>
+                         </tr>
+                     </tbody>
+                 </table>
+             </div>
+
+             <!-- Team Summary View (History Mode) - Resumen por empleado -->
+             <div v-else class="rounded-xl border bg-white shadow-sm overflow-hidden">
+                 <div class="border-b bg-gray-50 px-6 py-4 flex justify-between items-center">
+                    <h3 class="text-lg font-medium text-gray-900">Resumen de Vacaciones del Equipo</h3>
+                    <span v-if="teamVacationSummary.data" class="text-xs text-gray-500 font-medium bg-white px-2 py-1 rounded border">
+                        {{ teamVacationSummary.data.length }} empleados
+                    </span>
+                 </div>
+                 <div v-if="teamVacationSummary.loading" class="p-6 text-center text-gray-500">Cargando...</div>
+                 <div v-else-if="!teamVacationSummary.data?.length" class="p-6 text-center text-gray-500 text-sm">
+                     No hay empleados en tu equipo.
+                 </div>
+                 <table v-else class="min-w-full divide-y divide-gray-200">
+                     <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Empleado</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
+                                <Tooltip text="Días de vacaciones asignados">
+                                    <span class="cursor-help">Asignados</span>
+                                </Tooltip>
+                            </th>
+                            <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-orange-600">
+                                <Tooltip text="Días pendientes de aprobación">
+                                    <span class="cursor-help">Pendientes</span>
+                                </Tooltip>
+                            </th>
+                            <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-blue-600">
+                                <Tooltip text="Días ya disfrutados (fechas pasadas)">
+                                    <span class="cursor-help">Disfrutados</span>
+                                </Tooltip>
+                            </th>
+                            <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-purple-600">
+                                <Tooltip text="Días aprobados pero aún no disfrutados (fechas futuras)">
+                                    <span class="cursor-help">Por Disfrutar</span>
+                                </Tooltip>
+                            </th>
+                            <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-700">
+                                <Tooltip text="Saldo disponible para solicitar">
+                                    <span class="cursor-help">Disponibles</span>
+                                </Tooltip>
+                            </th>
+                            <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Acciones</th>
+                        </tr>
+                     </thead>
+                     <tbody class="divide-y divide-gray-200 bg-white">
+                         <tr 
+                            v-for="emp in teamVacationSummary.data" 
+                            :key="emp.employee"
+                            class="hover:bg-gray-50 cursor-pointer transition-colors"
+                            @click="openEmployeeDetail(emp)"
+                         >
+                             <td class="px-6 py-4 whitespace-nowrap">
+                                 <div class="flex items-center gap-3">
+                                     <div v-if="emp.image" class="h-10 w-10 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                                         <img :src="emp.image" class="h-full w-full object-cover" />
+                                     </div>
+                                     <div v-else class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                                         <FeatherIcon name="user" class="h-5 w-5 text-gray-400" />
+                                     </div>
+                                     <div>
+                                         <div class="text-sm font-medium text-gray-900">{{ emp.employee_name }}</div>
+                                         <div class="text-xs text-gray-500">{{ emp.designation || emp.centro || '' }}</div>
+                                     </div>
+                                 </div>
+                             </td>
+                             <td class="px-4 py-4 whitespace-nowrap text-center">
+                                 <span class="text-sm font-semibold text-gray-700">{{ emp.allocated }}</span>
+                             </td>
+                             <td class="px-4 py-4 whitespace-nowrap text-center">
+                                 <span 
+                                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                                    :class="emp.pending_approval > 0 ? 'bg-orange-100 text-orange-700' : 'text-gray-400'"
+                                 >
+                                     {{ emp.pending_approval }}
+                                 </span>
+                             </td>
+                             <td class="px-4 py-4 whitespace-nowrap text-center">
+                                 <span class="text-sm font-medium text-blue-600">{{ emp.enjoyed }}</span>
+                             </td>
+                             <td class="px-4 py-4 whitespace-nowrap text-center">
+                                 <span 
+                                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                                    :class="emp.approved_not_enjoyed > 0 ? 'bg-purple-100 text-purple-700' : 'text-gray-400'"
+                                 >
+                                     {{ emp.approved_not_enjoyed }}
+                                 </span>
+                             </td>
+                             <td class="px-4 py-4 whitespace-nowrap text-center">
+                                 <span 
+                                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold"
+                                    :class="emp.remaining > 0 ? 'bg-gray-100 text-gray-800' : 'bg-red-100 text-red-700'"
+                                 >
+                                     {{ emp.remaining }}
+                                 </span>
+                             </td>
+                             <td class="px-4 py-4 whitespace-nowrap text-right" @click.stop>
+                                 <Button variant="ghost" icon="eye" @click="openEmployeeDetail(emp)" title="Ver detalle">
+                                 </Button>
                              </td>
                          </tr>
                      </tbody>
@@ -480,6 +565,53 @@
         class="hidden"
         @change="handleListAttachment"
     />
+
+    <!-- Reject Dialog -->
+    <Dialog 
+        v-model="showRejectDialog"
+        :options="{
+            title: 'Rechazar Solicitud',
+            size: 'sm',
+            actions: [
+                {
+                    label: 'Cancelar',
+                    variant: 'subtle',
+                    onClick: () => { showRejectDialog = false }
+                },
+                {
+                    label: 'Rechazar',
+                    variant: 'solid',
+                    theme: 'red',
+                    loading: processingId === rejectingRequest?.name,
+                    onClick: confirmReject
+                }
+            ]
+        }"
+    >
+        <template #body-content>
+            <div class="space-y-4">
+                <div v-if="rejectingRequest" class="text-sm text-gray-600">
+                    <p>Vas a rechazar la solicitud de <span class="font-medium text-gray-900">{{ rejectingRequest.employee_name }}</span>:</p>
+                    <p class="mt-1 text-gray-500">
+                        {{ rejectingRequest.leave_type }} - 
+                        <span v-if="rejectingRequest.request_type === 'Por Días'">
+                            {{ formatDate(rejectingRequest.from_date) }} al {{ formatDate(rejectingRequest.to_date) }}
+                        </span>
+                        <span v-else>
+                            {{ formatDate(rejectingRequest.request_date) }} ({{ rejectingRequest.total_hours }}h)
+                        </span>
+                    </p>
+                </div>
+                <Input
+                    label="Motivo del rechazo (opcional)"
+                    type="textarea"
+                    v-model="rejectReason"
+                    rows="3"
+                    placeholder="Indica el motivo del rechazo..."
+                />
+            </div>
+        </template>
+    </Dialog>
 
     <!-- Attachments Dialog -->
     <Dialog 
@@ -546,12 +678,268 @@
             </div>
         </template>
     </Dialog>
+
+    <!-- Employee Detail Dialog (Full Screen Modal) -->
+    <Dialog 
+        v-model="showEmployeeDetailDialog"
+        :options="{
+            title: selectedEmployeeForDetail?.employee_name || 'Detalle del Empleado',
+            size: '5xl'
+        }"
+    >
+        <template #body-content>
+            <div v-if="employeeDetailLoading" class="p-8 text-center text-gray-500">
+                <FeatherIcon name="loader" class="h-8 w-8 animate-spin mx-auto mb-2 text-gray-400" />
+                Cargando información...
+            </div>
+            
+            <div v-else-if="employeeDetailData" class="space-y-6">
+                <!-- Header con info del empleado -->
+                <div class="flex items-center gap-4 pb-4 border-b">
+                    <div v-if="employeeDetailData.employee?.image" class="h-16 w-16 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                        <img :src="employeeDetailData.employee.image" class="h-full w-full object-cover" />
+                    </div>
+                    <div v-else class="h-16 w-16 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                        <FeatherIcon name="user" class="h-8 w-8 text-gray-400" />
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-xl font-semibold text-gray-900">{{ employeeDetailData.employee?.employee_name }}</h3>
+                        <div class="flex items-center gap-3 text-sm text-gray-500 mt-1">
+                            <span v-if="employeeDetailData.employee?.designation">{{ employeeDetailData.employee.designation }}</span>
+                            <span v-if="employeeDetailData.centro_name" class="flex items-center gap-1">
+                                <FeatherIcon name="map-pin" class="h-3 w-3" />
+                                {{ employeeDetailData.centro_name }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- Summary Cards -->
+                    <div class="flex gap-3">
+                        <div class="bg-gray-50 rounded-lg px-4 py-2 text-center border">
+                            <div class="text-2xl font-bold text-gray-900">{{ employeeDetailData.summary?.total_allocated || 0 }}</div>
+                            <div class="text-xs text-gray-500 uppercase">Asignados</div>
+                        </div>
+                        <div class="bg-blue-50 rounded-lg px-4 py-2 text-center border border-blue-100">
+                            <div class="text-2xl font-bold text-blue-600">{{ employeeDetailData.summary?.total_consumed || 0 }}</div>
+                            <div class="text-xs text-blue-600 uppercase">Consumidos</div>
+                        </div>
+                        <div class="bg-green-50 rounded-lg px-4 py-2 text-center border border-green-100">
+                            <div class="text-2xl font-bold text-green-600">{{ employeeDetailData.summary?.total_remaining || 0 }}</div>
+                            <div class="text-xs text-green-600 uppercase">Disponibles</div>
+                        </div>
+                        <div v-if="employeeDetailData.summary?.pending_approval > 0" class="bg-orange-50 rounded-lg px-4 py-2 text-center border border-orange-100">
+                            <div class="text-2xl font-bold text-orange-600">{{ employeeDetailData.summary.pending_approval }}</div>
+                            <div class="text-xs text-orange-600 uppercase">Pendientes</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabs para Asignaciones y Solicitudes -->
+                <div class="flex border-b">
+                    <button 
+                        class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
+                        :class="employeeDetailTab === 'applications' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'"
+                        @click="employeeDetailTab = 'applications'"
+                    >
+                        Solicitudes ({{ employeeDetailData.applications?.length || 0 }})
+                    </button>
+                    <button 
+                        class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
+                        :class="employeeDetailTab === 'allocations' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'"
+                        @click="employeeDetailTab = 'allocations'"
+                    >
+                        Asignaciones ({{ employeeDetailData.allocations?.length || 0 }})
+                    </button>
+                </div>
+
+                <!-- Applications Tab -->
+                <div v-if="employeeDetailTab === 'applications'" class="overflow-x-auto">
+                    <div v-if="!employeeDetailData.applications?.length" class="text-center text-gray-500 py-8">
+                        No hay solicitudes registradas.
+                    </div>
+                    <table v-else class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Tipo</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Fechas</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Días</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Estado</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Descripción</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 bg-white">
+                            <tr v-for="app in employeeDetailData.applications" :key="app.name" class="hover:bg-gray-50">
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    {{ app.leave_type_name }}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                    {{ formatDate(app.from_date) }} - {{ formatDate(app.to_date) }}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 text-center">
+                                    {{ app.total_days }} días
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-center">
+                                    <Badge :variant="getStatusVariant(app.status)">{{ app.status }}</Badge>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-gray-500 max-w-xs truncate" :title="app.description">
+                                    {{ app.description || '-' }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Allocations Tab -->
+                <div v-else-if="employeeDetailTab === 'allocations'" class="space-y-4">
+                    <!-- Add Allocation Button -->
+                    <div class="flex justify-end">
+                        <button 
+                            @click="openNewAllocationDialog"
+                            class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
+                        >
+                            <FeatherIcon name="plus" class="h-4 w-4" />
+                            Añadir Asignación
+                        </button>
+                    </div>
+                    
+                    <div v-if="!employeeDetailData.allocations?.length" class="text-center text-gray-500 py-8">
+                        No hay asignaciones registradas.
+                    </div>
+                    <table v-else class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Tipo de Licencia</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Período Contrato</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Asignados</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Consumidos</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Disponibles</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Asignado por</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 bg-white">
+                            <tr v-for="alloc in employeeDetailData.allocations" :key="alloc.name" class="hover:bg-gray-50">
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    {{ alloc.leave_type_name }}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                    {{ formatDate(alloc.contract_start_date) }} - {{ formatDate(alloc.contract_end_date) }}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-center font-medium">
+                                    {{ alloc.days_allocated }}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-blue-600 text-center font-medium">
+                                    {{ alloc.days_consumed }}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-center">
+                                    <span 
+                                        class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold"
+                                        :class="alloc.days_remaining > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+                                    >
+                                        {{ alloc.days_remaining }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                    <div class="flex flex-col">
+                                        <span>{{ alloc.created_by_name }}</span>
+                                        <span class="text-xs text-gray-400">{{ formatDate(alloc.creation) }}</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div v-else class="p-8 text-center text-gray-500">
+                No se pudo cargar la información del empleado.
+            </div>
+        </template>
+    </Dialog>
+
+    <!-- New Allocation Dialog -->
+    <Dialog 
+        v-model="showNewAllocationDialog"
+        :options="{
+            title: 'Nueva Asignación de Vacaciones',
+            size: 'lg'
+        }"
+    >
+        <template #body-content>
+            <div class="space-y-4">
+                <div v-if="selectedEmployeeForDetail" class="bg-gray-50 rounded-lg p-3 flex items-center gap-3">
+                    <div v-if="selectedEmployeeForDetail.image" class="h-10 w-10 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                        <img :src="selectedEmployeeForDetail.image" class="h-full w-full object-cover" />
+                    </div>
+                    <div v-else class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                        <FeatherIcon name="user" class="h-5 w-5 text-gray-400" />
+                    </div>
+                    <div>
+                        <div class="font-medium text-gray-900">{{ selectedEmployeeForDetail.employee_name }}</div>
+                        <div class="text-xs text-gray-500">{{ selectedEmployeeForDetail.centro }}</div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Días a Asignar *</label>
+                    <input 
+                        v-model="newAllocationForm.days_allocated"
+                        type="number"
+                        min="1"
+                        step="1"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                        placeholder="Ej: 5"
+                    />
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
+                        <input 
+                            v-model="newAllocationForm.contract_start_date"
+                            type="date"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                        />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Fin</label>
+                        <input 
+                            v-model="newAllocationForm.contract_end_date"
+                            type="date"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                        />
+                    </div>
+                </div>
+
+                <p class="text-xs text-gray-500">
+                    * La asignación se creará para el tipo de licencia "Vacaciones"
+                </p>
+            </div>
+        </template>
+        <template #actions>
+            <div class="flex justify-end gap-2">
+                <button 
+                    @click="showNewAllocationDialog = false"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                    Cancelar
+                </button>
+                <button 
+                    @click="saveNewAllocation"
+                    :disabled="newAllocationSaving || !newAllocationForm.days_allocated"
+                    class="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <span v-if="newAllocationSaving">Guardando...</span>
+                    <span v-else>Guardar Asignación</span>
+                </button>
+            </div>
+        </template>
+    </Dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { createResource, Popover, Tooltip, FeatherIcon, Autocomplete, Dialog } from 'frappe-ui'
+import { createResource, Popover, Tooltip, FeatherIcon, Autocomplete, Dialog, Input, Badge } from 'frappe-ui'
 import dayjs from 'dayjs'
 import RequestDialog from '@/components/SpanishLeave/RequestDialog.vue'
 import MonthCalendar from '@/components/SpanishLeave/MonthCalendar.vue'
@@ -569,9 +957,28 @@ const attachingToId = ref(null)
 const showAttachmentsDialog = ref(false)
 const selectedLeaveForAttachments = ref(null)
 
+// Reject Dialog State
+const showRejectDialog = ref(false)
+const rejectingRequest = ref(null)
+const rejectReason = ref('')
+
 function openAttachmentsDialog(leave) {
     selectedLeaveForAttachments.value = leave
     showAttachmentsDialog.value = true
+}
+
+function openRejectDialog(request) {
+    rejectingRequest.value = request
+    rejectReason.value = ''
+    showRejectDialog.value = true
+}
+
+async function confirmReject() {
+    if (!rejectingRequest.value) return
+    await process(rejectingRequest.value.name, 'reject', rejectReason.value)
+    showRejectDialog.value = false
+    rejectingRequest.value = null
+    rejectReason.value = ''
 }
 
 // Team Management State
@@ -632,7 +1039,8 @@ const teamLeavesCalendarRes = createResource({
              month_end: dayjs().add(6, 'month').format('YYYY-MM-DD'),
              employee: teamFilterEmployee.value,
              leave_type: teamFilterLeaveType.value,
-             location: teamFilterRoom.value
+             location: teamFilterRoom.value,
+             only_my_team: teamFilterOnlyMyTeam.value || undefined
         }
     }
 })
@@ -642,6 +1050,101 @@ const teamMembersResource = createResource({
     url: 'portal_rrhh.api.spanish_leave.get_my_team_members',
     auto: true
 })
+
+// Team Vacation Summary (for History view)
+const teamVacationSummary = createResource({
+    url: 'portal_rrhh.api.spanish_leave.get_team_vacation_summary',
+    auto: true,
+    makeParams() {
+        return {
+            employee: teamFilterEmployee.value,
+            leave_type: teamFilterLeaveType.value,
+            location: teamFilterRoom.value,
+            only_my_team: teamFilterOnlyMyTeam.value || undefined
+        }
+    }
+})
+
+// Employee Detail Modal State
+const showEmployeeDetailDialog = ref(false)
+const selectedEmployeeForDetail = ref(null)
+const employeeDetailLoading = ref(false)
+const employeeDetailData = ref(null)
+const employeeDetailTab = ref('applications')
+
+const employeeDetailResource = createResource({
+    url: 'portal_rrhh.api.spanish_leave.get_employee_leave_detail',
+})
+
+async function openEmployeeDetail(employee) {
+    selectedEmployeeForDetail.value = employee
+    showEmployeeDetailDialog.value = true
+    employeeDetailLoading.value = true
+    employeeDetailData.value = null
+    employeeDetailTab.value = 'applications'
+    
+    try {
+        const result = await employeeDetailResource.fetch({ employee: employee.employee })
+        employeeDetailData.value = result
+    } catch (e) {
+        console.error(e)
+    } finally {
+        employeeDetailLoading.value = false
+    }
+}
+
+// New Allocation Dialog State
+const showNewAllocationDialog = ref(false)
+const newAllocationSaving = ref(false)
+const newAllocationForm = ref({
+    days_allocated: '',
+    contract_start_date: '',
+    contract_end_date: ''
+})
+
+const createAllocationResource = createResource({
+    url: 'portal_rrhh.api.spanish_leave.create_leave_allocation',
+})
+
+function openNewAllocationDialog() {
+    // Set default dates to current year
+    const currentYear = new Date().getFullYear()
+    newAllocationForm.value = {
+        days_allocated: '',
+        contract_start_date: `${currentYear}-01-01`,
+        contract_end_date: `${currentYear}-12-31`
+    }
+    showNewAllocationDialog.value = true
+}
+
+async function saveNewAllocation() {
+    if (!newAllocationForm.value.days_allocated || !selectedEmployeeForDetail.value) {
+        return
+    }
+    
+    newAllocationSaving.value = true
+    try {
+        await createAllocationResource.submit({
+            employee: selectedEmployeeForDetail.value.employee,
+            days_allocated: newAllocationForm.value.days_allocated,
+            contract_start_date: newAllocationForm.value.contract_start_date || null,
+            contract_end_date: newAllocationForm.value.contract_end_date || null
+        })
+        
+        showNewAllocationDialog.value = false
+        
+        // Refresh employee detail data
+        const result = await employeeDetailResource.fetch({ employee: selectedEmployeeForDetail.value.employee })
+        employeeDetailData.value = result
+        
+        // Refresh team summary
+        teamVacationSummary.reload()
+    } catch (e) {
+        console.error(e)
+    } finally {
+        newAllocationSaving.value = false
+    }
+}
 
 // Processing Logic
 const processResource = createResource({
@@ -653,10 +1156,10 @@ const deleteAttachmentResource = createResource({
     url: 'portal_rrhh.api.spanish_leave.delete_attachment',
 })
 
-async function process(name, action) {
+async function process(name, action, reason = '') {
     processingId.value = name
     try {
-        await processResource.submit({ name, action })
+        await processResource.submit({ name, action, reason })
         teamRequests.reload()
         teamLeavesCalendarRes.reload()
         dashboard.reload()
@@ -669,7 +1172,16 @@ async function process(name, action) {
 
 // Handler para procesar desde Gantt
 async function handleGanttProcess({ name, action }) {
-    await process(name, action)
+    if (action === 'reject') {
+        // Buscar la solicitud para mostrar el diálogo
+        const request = teamRequests.data?.find(r => r.name === name) || 
+                       teamLeavesCalendarRes.data?.find(r => r.name === name)
+        if (request) {
+            openRejectDialog(request)
+        }
+    } else {
+        await process(name, action)
+    }
 }
 
 function refreshAll() {
@@ -859,6 +1371,7 @@ const yearMonths = computed(() => {
 watch([teamViewMode, teamFilterEmployee, teamFilterRoom, teamFilterLeaveType, teamFilterOnlyMyTeam], () => {
     teamRequests.fetch()
     teamLeavesCalendarRes.fetch()
+    teamVacationSummary.fetch()
 })
 
 const employeeOptions = computed(() => {
