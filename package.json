@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "postinstall": "cd frontend && yarn install --check-files",
     "build": "cd frontend && yarn build && cd .. && python3 update_references.py"
   }
 }
