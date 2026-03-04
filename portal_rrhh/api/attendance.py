@@ -375,6 +375,55 @@ def save_verified_attendance(employee, date, total_hours, in_time=None, out_time
         return {"success": False, "message": str(e)}
 
 @frappe.whitelist(allow_guest=False)
+def export_attendance_report(employee, from_date, to_date):
+    """
+    Export attendance report to Excel
+    """
+    import io
+    from frappe.utils.xlsxutils import make_xlsx
+    
+    # Reuse the get_attendance_report logic
+    result = get_attendance_report(employee, from_date, to_date)
+    
+    if not result.get("success"):
+        frappe.throw(result.get("message", "Error generating report"))
+    
+    data = result.get("data", [])
+    
+    # Get employee name
+    emp_name = frappe.db.get_value("Employee", employee, "employee_name") or employee
+    
+    # Build Excel data
+    columns = [
+        "Fecha",
+        "Horas Trabajadas", 
+        "Estado",
+        "Anomalía"
+    ]
+    
+    rows = []
+    for day in data:
+        rows.append([
+            frappe.utils.formatdate(day.get("date"), "dd/MM/yyyy"),
+            day.get("hours", 0),
+            day.get("status") or "",
+            day.get("anomaly_desc") or ""
+        ])
+    
+    # Add total row
+    total_hours = sum(d.get("hours", 0) for d in data)
+    rows.append(["TOTAL", total_hours, "", ""])
+    
+    # Create Excel
+    xlsx_data = make_xlsx([columns] + rows, f"Asistencia {emp_name}")
+    
+    # Set response headers for download
+    frappe.response["filename"] = f"Asistencia_{emp_name}_{from_date}_{to_date}.xlsx"
+    frappe.response["filecontent"] = xlsx_data.getvalue()
+    frappe.response["type"] = "binary"
+
+
+@frappe.whitelist(allow_guest=False)
 def get_attendance_anomalies(from_date, to_date, employee=None, reports_to=None, show_all=False):
     """
     Detect anomalies in attendance:

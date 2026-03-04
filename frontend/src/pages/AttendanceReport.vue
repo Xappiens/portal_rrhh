@@ -25,29 +25,69 @@
       <div class="bg-gray-50 rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
         <div class="grid grid-cols-12 gap-4 items-end">
             <!-- Employee Search -->
-            <div class="col-span-12 md:col-span-4">
+            <div class="col-span-12 md:col-span-4 relative">
                 <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Empleado') }}</label>
-                <Autocomplete
-                    v-model="filters.employee"
-                    :options="employeeOptions"
-                    placeholder="Buscar por nombre, DNI o ID..."
-                    @update:query="searchEmployees"
-                />
+                <div class="relative">
+                    <input
+                        type="text"
+                        v-model="employeeSearchQuery"
+                        @input="onEmployeeSearch"
+                        @focus="showEmployeeDropdown = true"
+                        @blur="hideDropdownDelayed"
+                        class="form-input w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        :placeholder="filters.employee ? filters.employee.label : 'Buscar por nombre, DNI o ID...'"
+                    />
+                    <button 
+                        v-if="filters.employee" 
+                        @click="clearEmployee"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                        ✕
+                    </button>
+                </div>
+                <!-- Dropdown -->
+                <div 
+                    v-if="showEmployeeDropdown && employeeOptions.length > 0"
+                    class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto"
+                >
+                    <div
+                        v-for="option in employeeOptions"
+                        :key="option.value"
+                        @mousedown.prevent="selectEmployee(option)"
+                        class="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
+                    >
+                        {{ option.label }}
+                    </div>
+                </div>
+                <div 
+                    v-if="showEmployeeDropdown && employeeOptions.length === 0 && employeeSearchQuery"
+                    class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg p-3 text-sm text-gray-500"
+                >
+                    {{ searchingEmployees ? 'Buscando...' : 'No se encontraron resultados' }}
+                </div>
             </div>
             <!-- From Date -->
              <div class="col-span-6 md:col-span-3">
                 <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Desde') }}</label>
-                <DatePicker 
-                    v-model="filters.from_date"
-                    class="w-full"
+                <input
+                    type="text"
+                    v-model="fromDateDisplay"
+                    @blur="parseFromDate"
+                    @keyup.enter="parseFromDate"
+                    class="form-input w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    placeholder="DD/MM/YYYY"
                 />
             </div>
             <!-- To Date -->
              <div class="col-span-6 md:col-span-3">
                 <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Hasta') }}</label>
-                <DatePicker 
-                    v-model="filters.to_date"
-                    class="w-full"
+                <input
+                    type="text"
+                    v-model="toDateDisplay"
+                    @blur="parseToDate"
+                    @keyup.enter="parseToDate"
+                    class="form-input w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    placeholder="DD/MM/YYYY"
                 />
             </div>
              <!-- Button -->
@@ -222,7 +262,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { Button, Autocomplete, DatePicker, call, debounce, Dialog, Input, Badge, createResource } from 'frappe-ui'
+import { Button, call, debounce, Dialog, Input, Badge, createResource } from 'frappe-ui'
 import dayjs from 'dayjs'
 import customParseFormat from 'dayjs/plugin/customParseFormat'
 import 'dayjs/locale/es'
@@ -235,6 +275,11 @@ const loading = ref(false)
 const hasRunReport = ref(false)
 const reportData = ref([])
 const employeeDetails = ref(null)
+
+// Employee search state
+const employeeSearchQuery = ref('')
+const showEmployeeDropdown = ref(false)
+const searchingEmployees = ref(false)
 
 // Dialog State
 const showVerifyDialog = ref(false)
@@ -276,9 +321,35 @@ watch(() => [editForm.value.total_hours, editForm.value.verified_in_time, editFo
 
 const filters = ref({
     employee: null,
-    from_date: dayjs().startOf('month').format('YYYY-MM-DD'),
-    to_date: dayjs().endOf('month').format('YYYY-MM-DD')
+    from_date: dayjs().startOf('year').format('YYYY-MM-DD'),
+    to_date: dayjs().format('YYYY-MM-DD')
 })
+
+// Date display in European format (DD/MM/YYYY)
+const fromDateDisplay = ref(dayjs().startOf('year').format('DD/MM/YYYY'))
+const toDateDisplay = ref(dayjs().format('DD/MM/YYYY'))
+
+const parseFromDate = () => {
+    const parsed = dayjs(fromDateDisplay.value, 'DD/MM/YYYY', true)
+    if (parsed.isValid()) {
+        filters.value.from_date = parsed.format('YYYY-MM-DD')
+        fromDateDisplay.value = parsed.format('DD/MM/YYYY')
+    } else {
+        // Reset to current value
+        fromDateDisplay.value = dayjs(filters.value.from_date).format('DD/MM/YYYY')
+    }
+}
+
+const parseToDate = () => {
+    const parsed = dayjs(toDateDisplay.value, 'DD/MM/YYYY', true)
+    if (parsed.isValid()) {
+        filters.value.to_date = parsed.format('YYYY-MM-DD')
+        toDateDisplay.value = parsed.format('DD/MM/YYYY')
+    } else {
+        // Reset to current value
+        toDateDisplay.value = dayjs(filters.value.to_date).format('DD/MM/YYYY')
+    }
+}
 
 const isValidFilter = computed(() => {
     return filters.value.employee && filters.value.from_date && filters.value.to_date
@@ -290,12 +361,15 @@ const totalPeriodHours = computed(() => {
 
 const searchEmployees = debounce(async (query) => {
     try {
+        searchingEmployees.value = true
+        const searchLimit = query && query.trim() ? 0 : 50
+        
         const result = await call('portal_rrhh.portal_rrhh.employee_data.get_employees_list', {
-            search_term: query
+            search_term: query,
+            limit: searchLimit
         })
 
         employeeOptions.value = (result.employees || []).map(e => {
-            const statusLabel = e.status || 'Sin estado'
             const dniLabel = e.custom_dninie || 'Sin DNI'
             return {
                 label: `${e.employee_name} (${dniLabel})`,
@@ -305,8 +379,33 @@ const searchEmployees = debounce(async (query) => {
         })
     } catch (e) {
         console.error("Search failed:", e)
+    } finally {
+        searchingEmployees.value = false
     }
 }, 300)
+
+const onEmployeeSearch = () => {
+    showEmployeeDropdown.value = true
+    searchEmployees(employeeSearchQuery.value)
+}
+
+const selectEmployee = (option) => {
+    filters.value.employee = option
+    employeeSearchQuery.value = option.label
+    showEmployeeDropdown.value = false
+}
+
+const clearEmployee = () => {
+    filters.value.employee = null
+    employeeSearchQuery.value = ''
+    searchEmployees('')
+}
+
+const hideDropdownDelayed = () => {
+    setTimeout(() => {
+        showEmployeeDropdown.value = false
+    }, 200)
+}
 
 const fetchReport = async () => {
     if (!isValidFilter.value) return

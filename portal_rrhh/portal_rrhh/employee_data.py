@@ -35,7 +35,9 @@ def get_employees_list(filters=None, limit=20, offset=0, search_term=None):
             }
 
         # Determine page_length
-        page_length = int(limit) if limit else 20
+        # limit=0 means no limit (fetch all matching), similar to Frappe's link search
+        limit_val = int(limit) if limit is not None else 20
+        page_length = limit_val if limit_val > 0 else None
         start = int(offset) if offset else 0
 
         # Fetch employees using standard frappe.get_list which handles permissions
