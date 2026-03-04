@@ -138,7 +138,7 @@
                         :options="[
                             { label: '📋 Todos (General)', value: '__todos__' },
                             ...planes.map(p => ({ 
-                                label: (p.n_plan_formativo ? `[${p.n_plan_formativo}] ` : '') + (p.custom_descripción_del_plan || p.name), 
+                                label: p.plan_formativo || p.name, 
                                 value: p.name 
                             }))
                         ]"
@@ -474,7 +474,7 @@ const updateProgram = async (log, val) => {
          }
 
          if (foundPlan) {
-             log.plan = { label: (foundPlan.n_plan_formativo ? `[${foundPlan.n_plan_formativo}] ` : '') + (foundPlan.custom_descripción_del_plan || foundPlan.name), value: foundPlan.name }
+             log.plan = { label: foundPlan.plan_formativo || foundPlan.name, value: foundPlan.name }
          } else {
              log.plan = found.custom_plan // Fallback to ID
          }
@@ -511,7 +511,7 @@ const updateCourse = (log, val) => {
              if (planName) {
                  const foundPlan = planes.value.find(pl => pl.name === planName)
                  log.plan = foundPlan 
-                    ? { label: foundPlan.custom_descripción_del_plan || foundPlan.name, value: foundPlan.name } 
+                    ? { label: foundPlan.plan_formativo || foundPlan.name, value: foundPlan.name } 
                     : planName
              }
         }
@@ -666,7 +666,7 @@ const editTimesheet = async (name) => {
                     ? (foundProgram ? { label: (foundProgram.custom_num_de_expediente ? `[${foundProgram.custom_num_de_expediente}] ` : '') + (foundProgram.program_name || foundProgram.name), value: l.expediente, link_plan: foundProgram.custom_plan } : l.expediente)
                     : todosOption('Todos'),
                 plan: l.plan 
-                    ? (foundPlan ? { label: (foundPlan.n_plan_formativo ? `[${foundPlan.n_plan_formativo}] ` : '') + (foundPlan.custom_descripción_del_plan || foundPlan.name), value: l.plan } : l.plan)
+                    ? (foundPlan ? { label: foundPlan.plan_formativo || foundPlan.name, value: l.plan } : l.plan)
                     : todosOption('Todos (General)')
             }
         })
@@ -762,7 +762,7 @@ const duplicateTimesheet = async (name) => {
                     ? (foundProgram ? { label: (foundProgram.custom_num_de_expediente ? `[${foundProgram.custom_num_de_expediente}] ` : '') + (foundProgram.program_name || foundProgram.name), value: l.expediente, link_plan: foundProgram.custom_plan } : l.expediente)
                     : todosOption('Todos'),
                 plan: l.plan 
-                    ? (foundPlan ? { label: (foundPlan.n_plan_formativo ? `[${foundPlan.n_plan_formativo}] ` : '') + (foundPlan.custom_descripción_del_plan || foundPlan.name), value: l.plan } : l.plan)
+                    ? (foundPlan ? { label: foundPlan.plan_formativo || foundPlan.name, value: l.plan } : l.plan)
                     : todosOption('Todos (General)')
             }
         })

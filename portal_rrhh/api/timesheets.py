@@ -252,8 +252,10 @@ def get_sedes():
 
 @frappe.whitelist()
 def get_planes(txt=None, limit=50):
-    """Get list of active Planes Formativos."""
-    filters = {}
+    """Get list of active Planes Formativos (excluding Anulado)."""
+    filters = {
+        "estado": ["!=", "Anulado"]
+    }
     
     or_filters = None
     if txt:
