@@ -89,6 +89,11 @@ const routes = [
     name: 'Nominas',
     component: () => import('@/pages/Nominas.vue'),
   },
+  {
+    path: '/prevision',
+    name: 'Prevision',
+    component: () => import('@/pages/Prevision.vue'),
+  },
 
   {
     path: '/ai-dashboard',

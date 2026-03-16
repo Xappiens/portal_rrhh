@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white border-b border-gray-200 px-6 py-4">
+  <div v-if="title || showNewButton || showExport" class="bg-white border-b border-gray-200 px-6 py-4">
     <div class="flex items-center justify-between">
       <div id="page-header-title-area" class="flex items-center space-x-4">
         <div v-if="!hideTitle">

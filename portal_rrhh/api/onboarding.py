@@ -2,131 +2,210 @@ import frappe
 from frappe import _
 from frappe.utils import today, getdate, add_days
 
-# Force reload check - 2026-02-02
+
 def create_onboarding_process_if_needed(doc, method=None):
     """
-    Creates an Employee Onboarding Process when Job Offer status is 'Alta'.
+    Creates an Employee Onboarding Process when Job Offer status changes to 'Alta'.
     
-    Validaciones implementadas:
-    - Problema 2: Si custom_fecha_fin está en el pasado, no crear onboarding
-    - Problema 3: Solo crear onboarding cuando el workflow_state CAMBIA a Alta (no en cualquier update)
-    - Problema 4: Si ya existe un onboarding COMPLETADO para esta Job Offer, no crear otro
+    Este hook se ejecuta en on_update, on_submit y on_update_after_submit.
+    
+    Lógica:
+    1. Solo procesar si el workflow_state actual es 'Alta'
+    2. Detectar si es un CAMBIO a Alta (no una actualización de un doc que ya estaba en Alta)
+    3. Validar que la fecha_fin no esté en el pasado
+    4. Verificar que no exista ya un proceso de onboarding para este Job Offer
+    5. Buscar el empleado vinculado
+    6. Crear el proceso con los documentos correspondientes a la empresa
     """
+    
+    # 1. Solo procesar si el estado actual es 'Alta'
     if doc.workflow_state != "Alta":
         return
-
-    # ========================================================================
-    # PROBLEMA 3: Solo crear onboarding cuando el workflow_state CAMBIA a Alta
-    # No en cualquier update de una Job Offer que ya estaba en Alta
-    # ========================================================================
     
-    # Obtener el valor anterior del workflow_state desde la base de datos
-    previous_workflow_state = frappe.db.get_value("Job Offer", doc.name, "workflow_state")
+    # 2. Detectar si es un CAMBIO a Alta usando _doc_before_save
+    # Frappe guarda automáticamente el estado anterior del documento
+    doc_before_save = doc.get_doc_before_save()
     
-    # Si el documento ya existía y el workflow_state anterior también era "Alta",
-    # significa que es solo una actualización menor, no un cambio de estado
-    if previous_workflow_state == "Alta":
-        # Es una actualización de una Job Offer que ya estaba en Alta
-        # No crear nuevo onboarding
-        return
-
-    # ========================================================================
-    # PROBLEMA 2: Validar que custom_fecha_fin no esté en el pasado
-    # Si la fecha fin ya pasó, la contratación ya terminó y no necesita onboarding
-    # ========================================================================
+    if doc_before_save:
+        previous_workflow_state = doc_before_save.workflow_state
+        
+        # Si el estado anterior ya era 'Alta', es solo una actualización menor
+        if previous_workflow_state == "Alta":
+            return
+    else:
+        # Si no hay doc_before_save, es un documento nuevo
+        # En on_submit de un documento nuevo, sí debemos procesar
+        # Pero verificamos que no hayamos procesado ya este Job Offer
+        pass
     
+    # 3. Validar que custom_fecha_fin no esté en el pasado
     if doc.custom_fecha_fin:
         fecha_fin = getdate(doc.custom_fecha_fin)
         hoy = getdate(today())
         
         if fecha_fin < hoy:
-            # La contratación ya finalizó, no crear onboarding
             frappe.log_error(
                 f"Onboarding NO creado para Job Offer {doc.name}: fecha_fin ({doc.custom_fecha_fin}) ya pasó",
-                "Onboarding Validation - Fecha Fin Pasada"
+                "Onboarding - Fecha Fin Pasada"
             )
             return
-
-    # ========================================================================
-    # PROBLEMA 4: Verificar si ya existe un onboarding completado o en curso
-    # Estados que bloquean: Pending, In Progress, Completed
-    # Solo se permite crear si el anterior fue Cancelled
-    # ========================================================================
     
-    # Verificar si existe un proceso en estado Pending, In Progress o Completed
+    # 4. Verificar si ya existe un proceso de onboarding para este Job Offer
+    # Solo bloquear si existe uno Pending, In Progress o Completed
     existing_process = frappe.db.exists("Employee Onboarding Process", {
         "job_offer": doc.name,
         "onboarding_status": ["in", ["Pending", "In Progress", "Completed"]]
     })
-
-    if existing_process:
-        # Ya existe un proceso pendiente, en curso o completado, no crear otro
-        return
-
-    # Find relevant Employee
-    # 1. Check if Job Offer serves as link (custom field not seen, so verify standard)
-    # 2. Check Employee where job_applicant matches
-    employee_name = None
-    if doc.job_applicant:
-        employee_name = frappe.db.get_value("Employee", {"job_applicant": doc.job_applicant}, "name")
     
-    # Fallback: Check if there is an employee with the applicant_email
-    if not employee_name and doc.applicant_email:
-        # Check by user_id or personal_email or company_email
-        employee_name = frappe.db.get_value("Employee", {"user_id": doc.applicant_email}, "name")
-        if not employee_name:
-             employee_name = frappe.db.get_value("Employee", {"personal_email": doc.applicant_email}, "name")
+    if existing_process:
+        return
+    
+    # 5. Buscar el empleado vinculado al Job Offer
+    employee_name = _find_employee_for_job_offer(doc)
     
     if not employee_name:
-        # If no employee found, we cannot create the process yet.
-        # This might happen if Job Offer is set to Alta BEFORE Employee creation.
-        # Ideally, this should also be hooked to Employee creation to check for Alta Job Offers.
+        # No se encontró empleado - esto puede pasar si el Job Offer se pasa a Alta
+        # antes de crear el Employee. Registrar para debug pero no es error.
+        frappe.log_error(
+            f"Onboarding NO creado para Job Offer {doc.name}: no se encontró empleado vinculado. "
+            f"job_applicant={doc.job_applicant}, custom_dninie={doc.get('custom_dninie')}, "
+            f"custom_empleado={doc.get('custom_empleado')}",
+            "Onboarding - Empleado No Encontrado"
+        )
         return
-
-    # Create the Process
-    process = frappe.new_doc("Employee Onboarding Process")
-    process.employee = employee_name
-    process.job_offer = doc.name
-    process.company = doc.company
-    process.start_date = today()
-    process.onboarding_status = "Pending"
     
-    # Find System Documents marked for Onboarding
-    # Filter: checkbox_onboarding = 1 AND workflow_state = 'Vigente'
-    docs = frappe.get_all("Documentos del sistema",
-                          filters={
-                              "checkbox_onboarding": 1, 
-                              "workflow_state": "Vigente"
-                          },
-                          fields=["name", "title", "document_type"])
+    # 6. Obtener documentos de onboarding para la empresa del Job Offer
+    valid_docs = _get_onboarding_documents_for_company(doc.company)
+    
+    if not valid_docs:
+        frappe.log_error(
+            f"Onboarding NO creado para Job Offer {doc.name}: "
+            f"no hay documentos de onboarding configurados para la empresa {doc.company}",
+            "Onboarding - Sin Documentos"
+        )
+        return
+    
+    # 7. Crear el proceso de onboarding
+    # Preservar el usuario que hizo el cambio en el Job Offer como owner del proceso
+    current_user = frappe.session.user
+    
+    try:
+        process = frappe.new_doc("Employee Onboarding Process")
+        process.employee = employee_name
+        process.job_offer = doc.name
+        process.company = doc.company
+        process.start_date = today()
+        process.onboarding_status = "Pending"
+        
+        # Asignar el owner como el usuario que cambió el Job Offer a Alta
+        process.owner = current_user
+        
+        for d in valid_docs:
+            row = process.append("required_documents", {})
+            row.document_reference = d.name
+            row.document_title = d.title
+            row.document_type = d.document_type
+            row.is_required = 1
+            row.is_completed = 0
+        
+        process.flags.ignore_permissions = True
+        process.insert()
+        frappe.db.commit()
+        
+        frappe.log_error(
+            f"✅ Onboarding CREADO: {process.name} para empleado {employee_name}, "
+            f"Job Offer {doc.name}, {len(valid_docs)} documentos, creado por {current_user}",
+            "Onboarding - Creado Exitosamente"
+        )
+        
+    except Exception as e:
+        frappe.log_error(
+            f"Error creando onboarding para Job Offer {doc.name}: {str(e)}\n{frappe.get_traceback()}",
+            "Onboarding - Error de Creación"
+        )
 
+
+def _find_employee_for_job_offer(doc):
+    """
+    Busca el empleado vinculado a un Job Offer.
+    
+    Orden de búsqueda:
+    1. Por custom_dninie (campo personalizado con el DNI/NIE)
+    2. Por custom_empleado (campo personalizado con link directo)
+    3. Por job_applicant (campo estándar)
+    4. Por applicant_email -> user_id del Employee
+    5. Por applicant_email -> personal_email del Employee
+    """
+    employee_name = None
+    
+    # 1. Buscar por custom_dninie (el DNI/NIE es el ID del empleado)
+    if doc.get("custom_dninie"):
+        if frappe.db.exists("Employee", doc.custom_dninie):
+            employee_name = doc.custom_dninie
+    
+    # 2. Buscar por custom_empleado
+    if not employee_name and doc.get("custom_empleado"):
+        if frappe.db.exists("Employee", doc.custom_empleado):
+            employee_name = doc.custom_empleado
+    
+    # 3. Buscar por job_applicant
+    if not employee_name and doc.job_applicant:
+        employee_name = frappe.db.get_value(
+            "Employee", 
+            {"job_applicant": doc.job_applicant}, 
+            "name"
+        )
+    
+    # 4. Buscar por applicant_email -> user_id
+    if not employee_name and doc.applicant_email:
+        employee_name = frappe.db.get_value(
+            "Employee", 
+            {"user_id": doc.applicant_email}, 
+            "name"
+        )
+    
+    # 5. Buscar por applicant_email -> personal_email
+    if not employee_name and doc.applicant_email:
+        employee_name = frappe.db.get_value(
+            "Employee", 
+            {"personal_email": doc.applicant_email}, 
+            "name"
+        )
+    
+    return employee_name
+
+
+def _get_onboarding_documents_for_company(company):
+    """
+    Obtiene los documentos de onboarding configurados para una empresa específica.
+    
+    Un documento aplica si:
+    - checkbox_onboarding = 1
+    - workflow_state = 'Vigente'
+    - La empresa está en la lista de System Document Company del documento
+    """
+    docs = frappe.get_all(
+        "Documentos del sistema",
+        filters={
+            "checkbox_onboarding": 1,
+            "workflow_state": "Vigente"
+        },
+        fields=["name", "title", "document_type"]
+    )
+    
     valid_docs = []
     for d in docs:
-        # Check specific companies
-        allowed_companies = frappe.get_all("System Document Company", filters={"parent": d.name}, pluck="company")
+        allowed_companies = frappe.get_all(
+            "System Document Company",
+            filters={"parent": d.name},
+            pluck="company"
+        )
         
-        # If no specific companies defined, it applies to NONE (as per user request).
-        # If companies defined, Job Offer's company must be in the list.
-        if allowed_companies and doc.company in allowed_companies:
+        # Solo incluir si la empresa del Job Offer está en la lista
+        if allowed_companies and company in allowed_companies:
             valid_docs.append(d)
-
-    if not valid_docs:
-        return
-
-    for d in valid_docs:
-        row = process.append("required_documents", {})
-        row.document_reference = d.name
-        row.document_title = d.title
-        row.document_type = d.document_type
-        row.is_required = 1
-        row.is_completed = 0
     
-    if not process.required_documents:
-        frappe.log_error(f"Onboarding Aborted: {doc.name}", "Attempted to create process with no documents.")
-        return
-
-    process.insert(ignore_permissions=True)
-    frappe.db.commit()
+    return valid_docs
 
 
 @frappe.whitelist()

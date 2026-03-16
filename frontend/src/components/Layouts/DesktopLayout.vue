@@ -61,10 +61,10 @@ const pageConfigs = {
     actionIcon: ''
   },
   'Vacantes': {
-    title: 'Vacantes',
+    title: '',
     subtitle: '',
-    actionButton: 'Nueva Vacante',
-    actionIcon: 'plus'
+    actionButton: '',
+    actionIcon: ''
   },
   'Solicitudes': {
     title: 'Solicitudes',
@@ -117,6 +117,12 @@ const pageConfigs = {
   'Nominas': {
     title: 'Gestión de Nóminas',
     subtitle: 'Sistema de liquidación de nóminas para docentes',
+    actionButton: '',
+    actionIcon: ''
+  },
+  'Prevision': {
+    title: '',
+    subtitle: '',
     actionButton: '',
     actionIcon: ''
   }
