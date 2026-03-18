@@ -1,7 +1,11 @@
 import frappe
 from frappe import _
-from frappe.utils import nowdate
+from frappe.utils import nowdate, now_datetime, time_diff_in_seconds
 import json
+
+
+# Tiempo mínimo en segundos entre creaciones de Modelo 145 del mismo empleado
+DUPLICATE_PREVENTION_SECONDS = 300  # 5 minutos
 
 
 @frappe.whitelist()
@@ -127,6 +131,27 @@ def create_modelo_145(**kwargs):
     # Verificar que el empleado existe
     if not frappe.db.exists("Employee", employee_id):
         frappe.throw(_("El empleado especificado no existe."))
+
+    # Protección anti-duplicados: verificar si hay un Modelo 145 reciente
+    ultimo_modelo = frappe.get_all(
+        "Modelo 145",
+        filters={"employee": employee_id},
+        fields=["name", "creation"],
+        order_by="creation desc",
+        limit=1
+    )
+    
+    if ultimo_modelo:
+        segundos_desde_ultimo = time_diff_in_seconds(now_datetime(), ultimo_modelo[0].creation)
+        if segundos_desde_ultimo < DUPLICATE_PREVENTION_SECONDS:
+            minutos_restantes = int((DUPLICATE_PREVENTION_SECONDS - segundos_desde_ultimo) / 60) + 1
+            frappe.throw(
+                _("Ya has presentado un Modelo 145 recientemente ({0}). "
+                  "Si necesitas presentar otro, espera {1} minuto(s) o contacta con RRHH.").format(
+                    ultimo_modelo[0].name, minutos_restantes
+                ),
+                title=_("Modelo 145 duplicado")
+            )
 
     # Crear el documento
     doc = frappe.new_doc("Modelo 145")

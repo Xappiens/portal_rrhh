@@ -76,6 +76,19 @@ def get_attendance_report(employee, from_date, to_date):
         fields=["attendance_date", "status", "working_hours", "in_time", "out_time"]
     )
     attendance_map = {a.attendance_date.strftime("%Y-%m-%d"): a for a in attendances}
+
+    # Fetch Verified Attendance for the period (for is_verified and verified_rest_time)
+    verified_map = {}
+    if frappe.db.table_exists("Verified Attendance"):
+        verified_list = frappe.get_all(
+            "Verified Attendance",
+            filters={
+                "employee": employee,
+                "attendance_date": ["between", [start_date, end_date]]
+            },
+            fields=["attendance_date", "verified_in_time", "verified_out_time", "rest_time"]
+        )
+        verified_map = {v.attendance_date.strftime("%Y-%m-%d"): v for v in verified_list}
     
     # Fetch approved leaves (standard + Spanish)
     leaves = frappe.get_all(
@@ -212,13 +225,47 @@ def get_attendance_report(employee, from_date, to_date):
         # Check holidays
         if is_holiday:
             status_list.append("Festivo")
+
+        # Build logs for frontend (exact entry/exit times)
+        logs = []
+        for c in sorted(day_checkins, key=lambda x: x.time):
+            logs.append({
+                "type": c.log_type,
+                "time": c.time.strftime("%H:%M")
+            })
+        # If no checkins but we have Attendance with in_time/out_time, use those for display
+        if not logs and date_str in attendance_map:
+            att = attendance_map[date_str]
+            def _to_hh_mm(t):
+                if t is None:
+                    return None
+                if hasattr(t, "strftime"):
+                    return t.strftime("%H:%M")
+                s = str(t)
+                if len(s) >= 5 and s[2] in (":", "."):
+                    return s[:5]
+                return s
+            if getattr(att, "in_time", None):
+                logs.append({"type": "IN", "time": _to_hh_mm(att.in_time)})
+            if getattr(att, "out_time", None):
+                logs.append({"type": "OUT", "time": _to_hh_mm(att.out_time)})
+
+        # Verified attendance for this day
+        verified = verified_map.get(date_str)
+        is_verified = bool(verified)
+        verified_rest_time = None
+        if verified and getattr(verified, "rest_time", None):
+            verified_rest_time = verified.rest_time
         
         result.append({
             "date": date_str,
             "hours": hours,
             "status": ", ".join(status_list) if status_list else None,
             "anomaly": anomaly,
-            "anomaly_desc": anomaly_desc
+            "anomaly_desc": anomaly_desc,
+            "logs": logs,
+            "is_verified": is_verified,
+            "verified_rest_time": verified_rest_time
         })
         
         current = add_days(current, 1)
@@ -392,27 +439,44 @@ def export_attendance_report(employee, from_date, to_date):
     
     # Get employee name
     emp_name = frappe.db.get_value("Employee", employee, "employee_name") or employee
-    
+
+    def _first_in(logs):
+        if not logs:
+            return ""
+        ins = [l for l in logs if l.get("type") == "IN"]
+        return ins[0].get("time", "") if ins else ""
+
+    def _last_out(logs):
+        if not logs:
+            return ""
+        outs = [l for l in logs if l.get("type") == "OUT"]
+        return outs[-1].get("time", "") if outs else ""
+
     # Build Excel data
     columns = [
         "Fecha",
-        "Horas Trabajadas", 
+        "Hora Entrada",
+        "Hora Salida",
+        "Horas Trabajadas",
         "Estado",
         "Anomalía"
     ]
-    
+
     rows = []
     for day in data:
+        logs = day.get("logs") or []
         rows.append([
             frappe.utils.formatdate(day.get("date"), "dd/MM/yyyy"),
+            _first_in(logs),
+            _last_out(logs),
             day.get("hours", 0),
             day.get("status") or "",
             day.get("anomaly_desc") or ""
         ])
-    
-    # Add total row
+
+    # Add total row (no time columns in total)
     total_hours = sum(d.get("hours", 0) for d in data)
-    rows.append(["TOTAL", total_hours, "", ""])
+    rows.append(["TOTAL", "", "", total_hours, "", ""])
     
     # Create Excel
     xlsx_data = make_xlsx([columns] + rows, f"Asistencia {emp_name}")

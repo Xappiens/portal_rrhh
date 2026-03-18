@@ -468,6 +468,9 @@ const error = ref(null)
 
 // Computed para determinar si se puede enviar el formulario
 const canSubmit = computed(() => {
+  // Debe tener employeeId cargado
+  const hasEmployee = !!props.employeeId
+  
   const hasDate = !!form.value.effective_date
   const hasDeclaration = form.value.declaration_accepted === true
   
@@ -489,7 +492,7 @@ const canSubmit = computed(() => {
     validMonoparental = form.value.descendants.length > 0
   }
   
-  return hasDate && hasDeclaration && validSpouseNif && validDescendants && validAscendants && validMonoparental && !submitting.value
+  return hasEmployee && hasDate && hasDeclaration && validSpouseNif && validDescendants && validAscendants && validMonoparental && !submitting.value
 })
 
 // Resource para crear el modelo
@@ -548,7 +551,18 @@ function removeAscendant(index) {
 
 // Enviar solicitud
 async function submitRequest() {
-  if (submitting.value) return
+  // Protección anti doble-clic: si ya está enviando, ignorar
+  if (submitting.value) {
+    console.log('Modelo 145: Ignorando clic duplicado, ya se está enviando')
+    return
+  }
+  
+  // Validación adicional del employeeId
+  if (!props.employeeId) {
+    error.value = 'Error: No se ha cargado la información del empleado. Por favor, recarga la página.'
+    return
+  }
+  
   submitting.value = true
   error.value = null
 
