@@ -49,6 +49,32 @@ def get_prevision_mes(mes, año, employee=None, course=None):
 		# Obtener courses del Job Offer
 		courses = get_courses_from_job_offer(jo.name)
 		
+		# Si no hay cursos asignados, incluir el docente sin curso
+		if not courses:
+			doc_key = f"JO-{jo.name}-SIN_CURSO"
+			if doc_key not in documentos_procesados:
+				documentos_procesados.add(doc_key)
+				
+				# Si no se filtró por curso específico, incluir
+				if not course:
+					prevision = calcular_prevision_sin_curso(
+						employee=jo.employee,
+						employee_name=jo.employee_name,
+						dni_nie=jo.dni_nie,
+						designation=jo.designation,
+						company=jo.company,
+						source_type="Job Offer",
+						source_doc=jo.name,
+						mes=mes,
+						año=año,
+						precio_hora=jo.precio_hora,
+						workflow_state=jo.workflow_state,
+						fecha_inicio=jo.fecha_inicio,
+						fecha_fin=jo.fecha_fin
+					)
+					if prevision:
+						previsiones.append(prevision)
+		
 		for course_name in courses:
 			# Evitar duplicados
 			doc_key = f"JO-{jo.name}-{course_name}"
@@ -94,8 +120,34 @@ def get_prevision_mes(mes, año, employee=None, course=None):
 	)
 	
 	for mod in modificaciones:
-		# Obtener courses de la Modificación
+		# Obtener courses de la Modificación (del job_offer original)
 		courses = get_courses_from_modificacion(mod.name)
+		
+		# Si no hay cursos asignados, incluir el docente sin curso
+		if not courses:
+			doc_key = f"MOD-{mod.name}-SIN_CURSO"
+			if doc_key not in documentos_procesados:
+				documentos_procesados.add(doc_key)
+				
+				# Si no se filtró por curso específico, incluir
+				if not course:
+					prevision = calcular_prevision_sin_curso(
+						employee=mod.employee,
+						employee_name=mod.employee_name,
+						dni_nie=mod.dni_nie,
+						designation=mod.designation,
+						company=mod.company,
+						source_type="Modificaciones RRHH",
+						source_doc=mod.name,
+						mes=mes,
+						año=año,
+						precio_hora=mod.precio_hora,
+						workflow_state=mod.workflow_state,
+						fecha_inicio=mod.fecha_inicio,
+						fecha_fin=mod.fecha_fin
+					)
+					if prevision:
+						previsiones.append(prevision)
 		
 		for course_name in courses:
 			# Evitar duplicados
@@ -858,6 +910,52 @@ def calcular_prevision_liquidacion(employee, employee_name, dni_nie, designation
 		'workflow_state': workflow_state,
 		'fecha_inicio': str(fecha_inicio) if fecha_inicio else None,
 		'fecha_fin': str(fecha_fin) if fecha_fin else None
+	}
+
+
+def calcular_prevision_sin_curso(employee, employee_name, dni_nie, designation, company,
+								source_type, source_doc, mes, año, precio_hora,
+								workflow_state=None, fecha_inicio=None, fecha_fin=None):
+	"""
+	Genera una previsión para un docente que NO tiene curso asignado.
+	Esto permite que aparezca en la lista de previsiones para que se pueda
+	identificar y asignarle un curso manualmente.
+	
+	Los valores numéricos se ponen a 0 ya que no hay calendario del que calcular horas.
+	"""
+	return {
+		'employee': employee,
+		'employee_name': employee_name,
+		'dni_nie': dni_nie,
+		'designation': designation,
+		'company': company,
+		'source_type': source_type,
+		'source_doc': source_doc,
+		'course': None,
+		'course_display': '⚠️ SIN CURSO ASIGNADO',
+		'mes': mes,
+		'año': año,
+		'horas_normales': 0,
+		'horas_extras': 0,
+		'total_horas': 0,
+		'dias_trabajados': 0,
+		'precio_hora': precio_hora,
+		'precio_hora_extra': round(flt(precio_hora) * 1.2, 2),
+		'importe_horas_normales': 0,
+		'importe_horas_extras': 0,
+		'bruto': 0,
+		'vacaciones_mes': 0,
+		'bruto_menos_vacaciones': 0,
+		'vacaciones_acumuladas': 0,
+		'base_ss': 0,
+		'importe_ss': 0,
+		'total': 0,
+		'estado': 'Sin Curso',
+		'es_ultimo_mes': 0,
+		'workflow_state': workflow_state,
+		'fecha_inicio': str(fecha_inicio) if fecha_inicio else None,
+		'fecha_fin': str(fecha_fin) if fecha_fin else None,
+		'sin_curso': True
 	}
 
 
