@@ -1309,6 +1309,9 @@
                 <Input type="date" v-model="filtrosIncentivos.hasta" class="text-sm" />
               </div>
             </div>
+            <p class="text-xs text-gray-500 mb-2">
+              Solo se muestran incentivos creados por ti o de empleados cuyo responsable en ficha (<span class="font-medium">reports to</span>) eres tú.
+            </p>
             <div class="flex gap-2">
               <Button @click="cargarIncentivos" icon-left="search" class="!py-1 !text-sm">
                 Buscar
@@ -1378,9 +1381,11 @@
                 <thead class="bg-gray-50">
                   <tr>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Empleado</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Responsable</th>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Provincia</th>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Componente</th>
                     <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Importe</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Horas</th>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fecha Nómina</th>
                     <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Estado</th>
                     <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Acciones</th>
@@ -1392,10 +1397,17 @@
                       <div class="text-sm font-medium text-gray-900">{{ inc.employee_name }}</div>
                       <div class="text-xs text-gray-500">{{ inc.employee }}</div>
                     </td>
+                    <td class="px-3 py-2 text-sm text-gray-500">
+                      <div>{{ inc.custom_incentivo_aprobado_por_name || '—' }}</div>
+                      <div v-if="inc.custom_incentivo_aprobado_por" class="text-xs text-gray-400">{{ inc.custom_incentivo_aprobado_por }}</div>
+                    </td>
                     <td class="px-3 py-2 text-sm text-gray-500">{{ inc.custom_provincia || '-' }}</td>
                     <td class="px-3 py-2 text-sm text-gray-500">{{ inc.salary_component }}</td>
                     <td class="px-3 py-2 text-sm text-right font-medium text-gray-900">
-                      {{ inc.custom_by_hours ? formatDuration(inc.custom_incentive_hours) : formatCurrency(inc.incentive_amount) }}
+                      {{ incentivoPorHoras(inc) ? '—' : formatCurrency(inc.incentive_amount) }}
+                    </td>
+                    <td class="px-3 py-2 text-sm text-right text-gray-700">
+                      {{ incentivoPorHoras(inc) ? formatDuration(inc.custom_incentive_hours) : '—' }}
                     </td>
                     <td class="px-3 py-2 text-sm text-gray-500">{{ formatDate(inc.payroll_date) }}</td>
                     <td class="px-3 py-2 text-center">
@@ -1404,14 +1416,32 @@
                       </Badge>
                     </td>
                     <td class="px-3 py-2 text-center">
-                      <div class="flex items-center justify-center gap-1">
+                      <div class="flex flex-wrap items-center justify-center gap-1">
+                        <Button 
+                          v-if="inc.portal_can_approve"
+                          @click="aprobarIncentivoPortal(inc)" 
+                          appearance="minimal"
+                          icon="check"
+                          class="!p-1 text-green-600"
+                          title="Validar"
+                          :loading="procesandoAccionIncentivo === `approve:${inc.name}`"
+                        />
+                        <Button 
+                          v-if="inc.portal_can_cancel"
+                          @click="cancelarIncentivoPortal(inc)" 
+                          appearance="minimal"
+                          icon="x-circle"
+                          class="!p-1 text-red-600"
+                          title="Cancelar incentivo"
+                          :loading="procesandoAccionIncentivo === `cancel:${inc.name}`"
+                        />
                         <Button 
                           @click="editarIncentivo(inc)" 
                           appearance="minimal"
                           icon="edit-2"
                           class="!p-1"
                           title="Editar"
-                          :disabled="inc.docstatus === 1"
+                          :disabled="!puedeEditarIncentivoLista(inc)"
                         />
                         <Button 
                           @click="abrirIncentivo(inc.name)" 
@@ -1636,9 +1666,10 @@
                 <Input 
                   type="text" 
                   v-model="incentivoForm.employee_search" 
-                  placeholder="Buscar empleado..."
-                  @input="buscarEmpleados"
+                  placeholder="Nombre, ID empleado o DNI (mín. 2 caracteres)..."
+                  @input="(v) => buscarEmpleados(v)"
                 />
+                <p class="text-xs text-gray-500 mt-0.5">Empleados activos; no se muestra el vinculado a tu usuario.</p>
                 <div v-if="empleadosSugeridos.length > 0" class="mt-1 bg-white border rounded-md shadow-sm max-h-40 overflow-y-auto">
                   <button 
                     v-for="emp in empleadosSugeridos" 
@@ -1646,7 +1677,9 @@
                     @click="seleccionarEmpleadoIncentivo(emp)"
                     class="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
                   >
-                    {{ emp.employee_name }} ({{ emp.name }})
+                    <span class="font-medium">{{ emp.employee_name }}</span>
+                    <span class="text-gray-600"> — {{ emp.designation || '—' }}</span>
+                    <span class="text-gray-400 text-xs"> ({{ emp.name }})</span>
                   </button>
                 </div>
                 <div v-if="incentivoForm.employee" class="mt-1 text-xs text-green-600">
@@ -1655,7 +1688,44 @@
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Provincia</label>
-                <Input type="text" v-model="incentivoForm.custom_provincia" placeholder="Provincia" />
+                <SearchableAutocomplete
+                  v-model="incentivoProvinciaModel"
+                  :options="provinciasIncentivoOpciones"
+                  placeholder="Buscar provincia (Job Offer)..."
+                  @update:query="(q) => buscarProvinciasIncentivoDebounced(q)"
+                />
+                <p class="text-xs text-gray-500 mt-0.5">
+                  Valores distintos de <span class="font-medium">Provincia</span> en ofertas de empleo.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Responsable (validación) *</label>
+              <Input 
+                type="text" 
+                v-model="incentivoForm.approver_search" 
+                placeholder="Buscar por nombre, ID o DNI..."
+                @input="(v) => buscarAprobadores(v)"
+              />
+              <p class="text-xs text-gray-500 mt-0.5">
+                Por defecto se rellena con el responsable de la ficha del empleado (<span class="font-medium">reports_to</span>). Puedes cambiarlo.
+              </p>
+              <div v-if="aprobadoresSugeridos.length > 0" class="mt-1 bg-white border rounded-md shadow-sm max-h-40 overflow-y-auto">
+                <button 
+                  v-for="ap in aprobadoresSugeridos" 
+                  :key="ap.name"
+                  type="button"
+                  @click="seleccionarAprobadorIncentivo(ap)"
+                  class="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
+                >
+                  <span class="font-medium">{{ ap.employee_name }}</span>
+                  <span class="text-gray-600"> — {{ ap.designation || '—' }}</span>
+                  <span class="text-gray-400 text-xs"> ({{ ap.name }})</span>
+                </button>
+              </div>
+              <div v-if="incentivoForm.custom_incentivo_aprobado_por" class="mt-1 text-xs text-green-600">
+                Seleccionado: {{ incentivoForm.approver_search || incentivoForm.custom_incentivo_aprobado_por }}
               </div>
             </div>
             
@@ -1710,10 +1780,26 @@
         </template>
         <template #actions>
           <Button appearance="white" @click="showIncentivoModal = false">
-            Cancelar
+            Cerrar
+          </Button>
+          <Button 
+            v-if="mostrarCancelarIncentivoModal" 
+            appearance="danger" 
+            @click="cancelarIncentivoDesdeModal"
+            :loading="guardandoIncentivo"
+          >
+            Cancelar incentivo
+          </Button>
+          <Button 
+            v-if="mostrarValidarIncentivoModal" 
+            class="!bg-emerald-600 hover:!bg-emerald-700 !text-white"
+            @click="validarIncentivoDesdeModal"
+            :loading="guardandoIncentivo"
+          >
+            Validar
           </Button>
           <Button @click="guardarIncentivo" :loading="guardandoIncentivo">
-            {{ incentivoEditando ? 'Guardar Cambios' : 'Crear Incentivo' }}
+            {{ incentivoEditando ? 'Guardar borrador' : 'Crear borrador' }}
           </Button>
         </template>
       </Dialog>
@@ -1737,7 +1823,7 @@
                   type="text" 
                   v-model="gastoForm.employee_search" 
                   placeholder="Buscar empleado..."
-                  @input="buscarEmpleadosGasto"
+                  @input="(v) => buscarEmpleadosGasto(v)"
                 />
                 <div v-if="empleadosSugeridosGasto.length > 0" class="mt-1 bg-white border rounded-md shadow-sm max-h-40 overflow-y-auto">
                   <button 
@@ -1916,7 +2002,9 @@
 
 <script>
 import { ref, onMounted, computed, reactive, watch } from 'vue'
+import { useDebounceFn } from '@vueuse/core'
 import { Card, Badge, Button, FeatherIcon, LoadingIndicator, Input, Dialog, call } from 'frappe-ui'
+import SearchableAutocomplete from '../components/SearchableAutocomplete.vue'
 
 export default {
   name: 'Nominas',
@@ -1927,7 +2015,8 @@ export default {
     FeatherIcon,
     LoadingIndicator,
     Input,
-    Dialog
+    Dialog,
+    SearchableAutocomplete
   },
   setup() {
     // Estado principal
@@ -1963,11 +2052,28 @@ export default {
     })
     const showIncentivoModal = ref(false)
     const incentivoEditando = ref(null)
+    const incentivoModalPortal = ref({
+      canApprove: false,
+      canCancel: false,
+      cancelDeletes: false
+    })
+    const procesandoAccionIncentivo = ref(null)
+
+    const mostrarValidarIncentivoModal = computed(() => {
+      if (!incentivoEditando.value) return true
+      return incentivoModalPortal.value.canApprove === true
+    })
+    const mostrarCancelarIncentivoModal = computed(() => {
+      return !!incentivoEditando.value && incentivoModalPortal.value.canCancel === true
+    })
+
     const incentivoForm = ref({
       employee: '',
       employee_name: '',
       employee_search: '',
       custom_provincia: '',
+      custom_incentivo_aprobado_por: '',
+      approver_search: '',
       salary_component: '',
       payroll_date: new Date().toISOString().split('T')[0],
       incentive_amount: 0,
@@ -1976,8 +2082,46 @@ export default {
       custom_justificación: ''
     })
     const salaryComponents = ref([])
+    /** Componentes permitidos en el formulario de incentivos (nombres en `tabSalary Component`). */
+    const INCENTIVO_SALARY_COMPONENT_NAMES = ['MEJORA VOLUNTARIA', 'DESCUENTO BRUTO']
     const empleadosSugeridos = ref([])
-    
+    const aprobadoresSugeridos = ref([])
+    const incentivoProvinciaModel = ref(null)
+    const provinciasIncentivoOpciones = ref([])
+
+    const fetchProvinciasJobOffer = async (searchText = '') => {
+      try {
+        const result = await call(
+          'portal_rrhh.api.incentive.get_job_offer_provincias_for_incentive',
+          { search_text: searchText || '', limit: 300 }
+        )
+        const names = Array.isArray(result) ? result : []
+        provinciasIncentivoOpciones.value = names.map((n) => ({ label: n, value: n }))
+      } catch (e) {
+        console.error('Error cargando provincias (Job Offer):', e)
+        provinciasIncentivoOpciones.value = []
+      }
+    }
+
+    const buscarProvinciasIncentivoDebounced = useDebounceFn(
+      (q) => fetchProvinciasJobOffer(q || ''),
+      300
+    )
+
+    watch(incentivoProvinciaModel, (val) => {
+      incentivoForm.value.custom_provincia = val && val.value != null ? val.value : ''
+    })
+
+    const asegurarProvinciaEnOpciones = (nombre) => {
+      if (!nombre) return
+      if (!provinciasIncentivoOpciones.value.some((o) => o.value === nombre)) {
+        provinciasIncentivoOpciones.value = [
+          { label: nombre, value: nombre },
+          ...provinciasIncentivoOpciones.value
+        ]
+      }
+    }
+
     // Estado Gastos
     const loadingGastos = ref(false)
     const guardandoGasto = ref(false)
@@ -2935,49 +3079,15 @@ export default {
     const cargarIncentivos = async () => {
       loadingIncentivos.value = true
       try {
-        // Construir filtros como array para soportar operadores
-        const filters_array = []
-        
-        // Filtro por estado
-        if (filtrosIncentivos.value.estado) {
-          if (filtrosIncentivos.value.estado === 'Draft') {
-            filters_array.push(['docstatus', '=', 0])
-          } else if (filtrosIncentivos.value.estado === 'Approved') {
-            filters_array.push(['docstatus', '=', 1])
-          } else if (filtrosIncentivos.value.estado === 'Rejected') {
-            filters_array.push(['workflow_state', '=', 'Rejected'])
-          }
-        }
-        
-        // Filtro por empleado (búsqueda parcial)
-        if (filtrosIncentivos.value.employee && filtrosIncentivos.value.employee.trim()) {
-          filters_array.push(['employee_name', 'like', `%${filtrosIncentivos.value.employee.trim()}%`])
-        }
-        
-        // Filtro por fecha desde
-        if (filtrosIncentivos.value.desde) {
-          filters_array.push(['payroll_date', '>=', filtrosIncentivos.value.desde])
-        }
-        
-        // Filtro por fecha hasta
-        if (filtrosIncentivos.value.hasta) {
-          filters_array.push(['payroll_date', '<=', filtrosIncentivos.value.hasta])
-        }
-        
-        const result = await call('frappe.client.get_list', {
-          doctype: 'Employee Incentive',
-          filters: filters_array,
-          fields: [
-            'name', 'employee', 'employee_name', 'department', 'company',
-            'salary_component', 'incentive_amount', 'payroll_date',
-            'custom_provincia', 'custom_by_hours', 'custom_incentive_hours',
-            'custom_justificación', 'docstatus', 'workflow_state'
-          ],
-          order_by: 'payroll_date desc',
-          limit_page_length: 100
+        const result = await call('portal_rrhh.api.incentive.list_employee_incentives_for_portal', {
+          desde: filtrosIncentivos.value.desde || undefined,
+          hasta: filtrosIncentivos.value.hasta || undefined,
+          estado: filtrosIncentivos.value.estado || undefined,
+          employee_search: filtrosIncentivos.value.employee?.trim() || undefined,
+          limit: 100
         })
         
-        incentivos.value = result || []
+        incentivos.value = Array.isArray(result) ? result : []
         
         // Calcular resumen
         let totalImporte = 0
@@ -3003,17 +3113,38 @@ export default {
       }
     }
     
-    const cargarSalaryComponents = async () => {
+    const cargarSalaryComponents = async (currentSalaryComponent = null) => {
       try {
         const result = await call('frappe.client.get_list', {
           doctype: 'Salary Component',
-          filters: { type: 'Earning' },
+          filters: [['name', 'in', INCENTIVO_SALARY_COMPONENT_NAMES]],
           fields: ['name'],
           limit_page_length: 0
         })
-        salaryComponents.value = result || []
+        let list = result || []
+        list.sort(
+          (a, b) =>
+            INCENTIVO_SALARY_COMPONENT_NAMES.indexOf(a.name) -
+            INCENTIVO_SALARY_COMPONENT_NAMES.indexOf(b.name)
+        )
+        if (
+          currentSalaryComponent &&
+          !list.some((c) => c.name === currentSalaryComponent)
+        ) {
+          const extra = await call('frappe.client.get_list', {
+            doctype: 'Salary Component',
+            filters: { name: currentSalaryComponent },
+            fields: ['name'],
+            limit_page_length: 1
+          })
+          if (extra && extra.length) {
+            list = [extra[0], ...list]
+          }
+        }
+        salaryComponents.value = list
       } catch (error) {
         console.error('Error cargando componentes:', error)
+        salaryComponents.value = []
       }
     }
     
@@ -3025,6 +3156,8 @@ export default {
         employee_name: '',
         employee_search: '',
         custom_provincia: '',
+        custom_incentivo_aprobado_por: '',
+        approver_search: '',
         salary_component: '',
         payroll_date: new Date().toISOString().split('T')[0],
         incentive_amount: 0,
@@ -3033,17 +3166,31 @@ export default {
         custom_justificación: ''
       }
       empleadosSugeridos.value = []
+      aprobadoresSugeridos.value = []
+      incentivoProvinciaModel.value = null
+      incentivoModalPortal.value = { canApprove: false, canCancel: false, cancelDeletes: false }
+      await fetchProvinciasJobOffer('')
       showIncentivoModal.value = true
     }
     
     const editarIncentivo = async (inc) => {
-      await cargarSalaryComponents()
+      await cargarSalaryComponents(inc.salary_component)
       incentivoEditando.value = inc.name
+      incentivoModalPortal.value = {
+        canApprove: !!inc.portal_can_approve,
+        canCancel: !!inc.portal_can_cancel,
+        cancelDeletes: !!inc.portal_cancel_deletes_record
+      }
+      const prov = inc.custom_provincia || ''
+      const apId = inc.custom_incentivo_aprobado_por || ''
+      const apName = inc.custom_incentivo_aprobado_por_name || apId || ''
       incentivoForm.value = {
         employee: inc.employee,
         employee_name: inc.employee_name,
         employee_search: inc.employee_name,
-        custom_provincia: inc.custom_provincia || '',
+        custom_provincia: prov,
+        custom_incentivo_aprobado_por: apId,
+        approver_search: apName,
         salary_component: inc.salary_component,
         payroll_date: inc.payroll_date,
         incentive_amount: inc.incentive_amount,
@@ -3052,26 +3199,37 @@ export default {
         custom_justificación: inc.custom_justificación || ''
       }
       empleadosSugeridos.value = []
+      aprobadoresSugeridos.value = []
+      await fetchProvinciasJobOffer('')
+      asegurarProvinciaEnOpciones(prov)
+      incentivoProvinciaModel.value = prov
+        ? { label: prov, value: prov }
+        : null
       showIncentivoModal.value = true
     }
     
-    const buscarEmpleados = async () => {
-      const search = incentivoForm.value.employee_search
+    const buscarEmpleados = async (valueFromInput) => {
+      // frappe-ui Input emite `input` en cada tecla pero `update:modelValue` solo en `change`;
+      // hay que usar el valor emitido o el modelo sigue vacío hasta perder el foco.
+      if (typeof valueFromInput === 'string') {
+        incentivoForm.value.employee_search = valueFromInput
+      }
+      const search = (incentivoForm.value.employee_search || '').trim()
       if (!search || search.length < 2) {
         empleadosSugeridos.value = []
         return
       }
       
       try {
-        const result = await call('frappe.client.get_list', {
-          doctype: 'Employee',
-          filters: [['employee_name', 'like', `%${search}%`]],
-          fields: ['name', 'employee_name', 'department'],
-          limit_page_length: 10
+        const result = await call('portal_rrhh.api.incentive.search_employees_for_incentive', {
+          search_text: search,
+          limit: 50
         })
-        empleadosSugeridos.value = result || []
+        empleadosSugeridos.value = Array.isArray(result) ? result : []
       } catch (error) {
         console.error('Error buscando empleados:', error)
+        empleadosSugeridos.value = []
+        showToast((error && error.message) || 'Error al buscar empleados', 'error')
       }
     }
     
@@ -3080,54 +3238,166 @@ export default {
       incentivoForm.value.employee_name = emp.employee_name
       incentivoForm.value.employee_search = emp.employee_name
       empleadosSugeridos.value = []
+      if (emp.reports_to) {
+        incentivoForm.value.custom_incentivo_aprobado_por = emp.reports_to
+        incentivoForm.value.approver_search = emp.reports_to_name || emp.reports_to
+      } else {
+        incentivoForm.value.custom_incentivo_aprobado_por = ''
+        incentivoForm.value.approver_search = ''
+      }
+      aprobadoresSugeridos.value = []
     }
-    
-    const guardarIncentivo = async () => {
-      if (!incentivoForm.value.employee || !incentivoForm.value.salary_component) {
-        showToast('Completa los campos requeridos', 'warning')
+
+    const buscarAprobadores = async (valueFromInput) => {
+      if (typeof valueFromInput === 'string') {
+        incentivoForm.value.approver_search = valueFromInput
+      }
+      const search = (incentivoForm.value.approver_search || '').trim()
+      if (!search || search.length < 2) {
+        aprobadoresSugeridos.value = []
         return
       }
-      
-      guardandoIncentivo.value = true
       try {
-        if (incentivoEditando.value) {
-          await call('frappe.client.set_value', {
-            doctype: 'Employee Incentive',
-            name: incentivoEditando.value,
-            fieldname: {
-              salary_component: incentivoForm.value.salary_component,
-              payroll_date: incentivoForm.value.payroll_date,
-              incentive_amount: incentivoForm.value.incentive_amount,
-              custom_provincia: incentivoForm.value.custom_provincia,
-              custom_by_hours: incentivoForm.value.custom_by_hours ? 1 : 0,
-              custom_incentive_hours: incentivoForm.value.custom_incentive_hours,
-              custom_justificación: incentivoForm.value.custom_justificación
-            }
-          })
-          showToast('Incentivo actualizado', 'success')
-        } else {
-          await call('frappe.client.insert', {
-            doc: {
-              doctype: 'Employee Incentive',
-              employee: incentivoForm.value.employee,
-              salary_component: incentivoForm.value.salary_component,
-              payroll_date: incentivoForm.value.payroll_date,
-              incentive_amount: incentivoForm.value.incentive_amount,
-              custom_provincia: incentivoForm.value.custom_provincia,
-              custom_by_hours: incentivoForm.value.custom_by_hours ? 1 : 0,
-              custom_incentive_hours: incentivoForm.value.custom_incentive_hours,
-              custom_justificación: incentivoForm.value.custom_justificación
-            }
-          })
-          showToast('Incentivo creado', 'success')
+        const result = await call('portal_rrhh.api.incentive.search_employees_for_approver', {
+          search_text: search,
+          limit: 50
+        })
+        aprobadoresSugeridos.value = Array.isArray(result) ? result : []
+      } catch (error) {
+        console.error('Error buscando responsables:', error)
+        aprobadoresSugeridos.value = []
+        showToast((error && error.message) || 'Error al buscar responsables', 'error')
+      }
+    }
+
+    const seleccionarAprobadorIncentivo = (ap) => {
+      incentivoForm.value.custom_incentivo_aprobado_por = ap.name
+      incentivoForm.value.approver_search = ap.employee_name
+      aprobadoresSugeridos.value = []
+    }
+
+    const incentivoPorHoras = (inc) =>
+      !!(inc && (inc.custom_by_hours === 1 || inc.custom_by_hours === true))
+
+    const puedeEditarIncentivoLista = (inc) => {
+      const ws = (inc.workflow_state || 'Borrador').trim()
+      return inc.docstatus === 0 && ws === 'Borrador'
+    }
+
+    const persistIncentivoFormInternal = async () => {
+      if (!incentivoForm.value.employee || !incentivoForm.value.salary_component) {
+        showToast('Completa los campos requeridos', 'warning')
+        return { ok: false }
+      }
+      if (!incentivoForm.value.custom_incentivo_aprobado_por) {
+        showToast('Indica el responsable que validará el incentivo', 'warning')
+        return { ok: false }
+      }
+      try {
+        const payload = {
+          name: incentivoEditando.value || undefined,
+          employee: incentivoForm.value.employee,
+          salary_component: incentivoForm.value.salary_component,
+          payroll_date: incentivoForm.value.payroll_date,
+          incentive_amount: incentivoForm.value.incentive_amount,
+          custom_provincia: incentivoForm.value.custom_provincia,
+          custom_by_hours: incentivoForm.value.custom_by_hours ? 1 : 0,
+          custom_incentive_hours: incentivoForm.value.custom_incentive_hours,
+          custom_justificación: incentivoForm.value.custom_justificación,
+          custom_incentivo_aprobado_por: incentivoForm.value.custom_incentivo_aprobado_por
         }
-        
-        showIncentivoModal.value = false
-        await cargarIncentivos()
-        
+        const result = await call('portal_rrhh.api.incentive.save_employee_incentive_portal', payload)
+        const docName = result?.name || incentivoEditando.value
+        if (!incentivoEditando.value && docName) {
+          incentivoEditando.value = docName
+        }
+        return { ok: true, name: docName }
       } catch (error) {
         console.error('Error guardando incentivo:', error)
         showToast('Error al guardar el incentivo', 'error')
+        return { ok: false }
+      }
+    }
+    
+    const guardarIncentivo = async () => {
+      guardandoIncentivo.value = true
+      try {
+        const r = await persistIncentivoFormInternal()
+        if (!r.ok) return
+        showToast(incentivoEditando.value ? 'Borrador actualizado' : 'Borrador creado', 'success')
+        showIncentivoModal.value = false
+        await cargarIncentivos()
+      } finally {
+        guardandoIncentivo.value = false
+      }
+    }
+
+    const validarIncentivoDesdeModal = async () => {
+      guardandoIncentivo.value = true
+      try {
+        const r = await persistIncentivoFormInternal()
+        if (!r.ok) return
+        await call('portal_rrhh.api.incentive.portal_approve_employee_incentive', { name: r.name })
+        showToast('Incentivo validado', 'success')
+        showIncentivoModal.value = false
+        await cargarIncentivos()
+      } catch (error) {
+        console.error('Error validando incentivo:', error)
+        showToast((error && error.message) || 'Error al validar el incentivo', 'error')
+      } finally {
+        guardandoIncentivo.value = false
+      }
+    }
+
+    const aprobarIncentivoPortal = async (inc) => {
+      const key = `approve:${inc.name}`
+      procesandoAccionIncentivo.value = key
+      try {
+        await call('portal_rrhh.api.incentive.portal_approve_employee_incentive', { name: inc.name })
+        showToast('Incentivo validado', 'success')
+        await cargarIncentivos()
+      } catch (error) {
+        console.error('Error validando incentivo:', error)
+        showToast((error && error.message) || 'Error al validar el incentivo', 'error')
+      } finally {
+        procesandoAccionIncentivo.value = null
+      }
+    }
+
+    const cancelarIncentivoPortal = async (inc) => {
+      const msg = inc.portal_cancel_deletes_record
+        ? '¿Eliminar este borrador? No podrá recuperarse.'
+        : '¿Cancelar este incentivo? Pasará a estado cancelado.'
+      if (!window.confirm(msg)) return false
+      const key = `cancel:${inc.name}`
+      procesandoAccionIncentivo.value = key
+      try {
+        await call('portal_rrhh.api.incentive.portal_cancel_employee_incentive', { name: inc.name })
+        showToast(
+          inc.portal_cancel_deletes_record ? 'Borrador eliminado' : 'Incentivo cancelado',
+          'success'
+        )
+        await cargarIncentivos()
+        return true
+      } catch (error) {
+        console.error('Error cancelando incentivo:', error)
+        showToast((error && error.message) || 'Error al cancelar el incentivo', 'error')
+        return false
+      } finally {
+        procesandoAccionIncentivo.value = null
+      }
+    }
+
+    const cancelarIncentivoDesdeModal = async () => {
+      if (!incentivoEditando.value) return
+      const inc = {
+        name: incentivoEditando.value,
+        portal_cancel_deletes_record: incentivoModalPortal.value.cancelDeletes
+      }
+      guardandoIncentivo.value = true
+      try {
+        const ok = await cancelarIncentivoPortal(inc)
+        if (ok) showIncentivoModal.value = false
       } finally {
         guardandoIncentivo.value = false
       }
@@ -3318,8 +3588,11 @@ export default {
       }
     }
     
-    const buscarEmpleadosGasto = async () => {
-      const search = gastoForm.value.employee_search
+    const buscarEmpleadosGasto = async (valueFromInput) => {
+      if (typeof valueFromInput === 'string') {
+        gastoForm.value.employee_search = valueFromInput
+      }
+      const search = (gastoForm.value.employee_search || '').trim()
       if (!search || search.length < 2) {
         empleadosSugeridosGasto.value = []
         return
@@ -3525,9 +3798,17 @@ export default {
       resumenIncentivos,
       showIncentivoModal,
       incentivoEditando,
+      incentivoModalPortal,
+      procesandoAccionIncentivo,
+      mostrarValidarIncentivoModal,
+      mostrarCancelarIncentivoModal,
       incentivoForm,
       salaryComponents,
       empleadosSugeridos,
+      aprobadoresSugeridos,
+      incentivoProvinciaModel,
+      provinciasIncentivoOpciones,
+      buscarProvinciasIncentivoDebounced,
       
       // Métodos Incentivos
       cargarIncentivos,
@@ -3535,8 +3816,16 @@ export default {
       nuevoIncentivo,
       editarIncentivo,
       buscarEmpleados,
+      buscarAprobadores,
       seleccionarEmpleadoIncentivo,
+      seleccionarAprobadorIncentivo,
       guardarIncentivo,
+      incentivoPorHoras,
+      puedeEditarIncentivoLista,
+      validarIncentivoDesdeModal,
+      cancelarIncentivoDesdeModal,
+      aprobarIncentivoPortal,
+      cancelarIncentivoPortal,
       abrirIncentivo,
       getIncentivoEstadoBadge,
       getIncentivoEstadoLabel,
